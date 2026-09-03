@@ -614,10 +614,11 @@ __interrupt void RXAINT_recv_ready(void) {
         SciaRegs.SCIFFRX.bit.RXFIFORESET = 1;
     } else {
         RXAdata = RXAdata & 0x00FF;
+        
         if (RXAdata == 'a') {
-            GpioDataRegs.GPBCLEAR.bit.GPIO34 = 1;
+            GpioDataRegs.GPBCLEAR.bit.GPIO34 = 1; //if the recieved character is a, turn on red LED
         } else if (RXAdata == 'b') {
-            GpioDataRegs.GPBSET.bit.GPIO34 = 1;
+            GpioDataRegs.GPBSET.bit.GPIO34 = 1; //if the recieved character is b, turn off red LED
         }
         numRXA++;
     }

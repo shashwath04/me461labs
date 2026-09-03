@@ -651,12 +651,7 @@ __interrupt void RXAINT_recv_ready(void)
         SciaRegs.SCIFFRX.bit.RXFIFORESET = 1;
     } else {
         RXAdata = RXAdata & 0x00FF;
-        if (RXAdata == 'a') {
-            GpioDataRegs.GPBCLEAR.bit.GPIO34 = 1;
-        }
-        else if (RXAdata == 'b') {
-            GpioDataRegs.GPBSET.bit.GPIO34 = 1; 
-        }
+        
         numRXA ++;
     }
 
