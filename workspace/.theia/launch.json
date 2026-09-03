@@ -1,4 +1,23 @@
 {
     "version": "0.2.0",
-    "configurations": []
+    "configurations": [
+        {
+            "name": "lab1",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "lab1",
+                "resourceId": "/lab1"
+            }
+        },
+        {
+            "name": "printtest",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "printtest",
+                "resourceId": "/printtest"
+            }
+        }
+    ]
 }
