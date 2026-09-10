@@ -18,6 +18,33 @@
                 "name": "printtest",
                 "resourceId": "/printtest"
             }
+        },
+        {
+            "name": "lab2",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "lab2",
+                "resourceId": "/lab2"
+            }
+        },
+        {
+            "name": "lab2_ex2",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "lab2_ex2",
+                "resourceId": "/lab2_ex2"
+            }
+        },
+        {
+            "name": "HW2code",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "HW2code",
+                "resourceId": "/HW2code"
+            }
         }
     ]
 }
