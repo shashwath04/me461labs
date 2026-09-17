@@ -45,6 +45,15 @@
                 "name": "HW2code",
                 "resourceId": "/HW2code"
             }
+        },
+        {
+            "name": "Lab3",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "Lab3",
+                "resourceId": "/Lab3"
+            }
         }
     ]
 }
