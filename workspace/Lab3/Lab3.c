@@ -41,12 +41,43 @@ extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
 uint16_t LEDdisplaynum = 0;
 
-int8_t updown_motor = 0;
-float controleffort = 0;
+//qiyuanx3: RC servo angle and updown variable
+float angle = 0;
+uint8_t updown_RC = 0;
 
+//qiyuanx3: motor control effort and updown variable
+float controleffort = 0;
+int8_t updown_motor = 0;
+
+//qiyuanx3: updown variable for oscilloscope
 uint8_t updown = 0;
 
-void setEPWM2A(float controleffort){
+// qiyuanx3: Song index
+uint16_t song_index = 0;
+
+
+//qiyuanx3: Song array
+uint16_t mysong[48] = {
+    C4NOTE, E4NOTE, G4NOTE, E4NOTE,
+    F4NOTE, A4NOTE, G4NOTE, OFFNOTE,
+
+    C4NOTE, E4NOTE, G4NOTE, B4NOTE,
+    A4NOTE, G4NOTE, E4NOTE, OFFNOTE,
+
+    F4NOTE, A4NOTE, C5NOTE, A4NOTE,
+    G4NOTE, B4NOTE, D5NOTE, B4NOTE,
+
+    C5NOTE, B4NOTE, A4NOTE, G4NOTE,
+    E4NOTE, G4NOTE, C5NOTE, OFFNOTE,
+
+    C5NOTE, A4NOTE, G4NOTE, E4NOTE,
+    F4NOTE, A4NOTE, G4NOTE, E4NOTE,
+
+    C4NOTE, E4NOTE, G4NOTE, C5NOTE,
+    B4NOTE, G4NOTE, C5NOTE, OFFNOTE
+};
+
+void setEPWM2A(float controleffort) {
     // -10 mean 0 and 10 mean 1250 and 0 means 1250
     if (controleffort > 10.0) {
         controleffort = 10.0;
@@ -71,6 +102,33 @@ void setEPWM2B(float controleffort) {
     float scaled_val = (-controleffort + 10.0) / 20.0;
 
     EPwm2Regs.CMPB.bit.CMPB = (float)(EPwm2Regs.TBPRD) * scaled_val;
+}
+
+void setEPWM8A_RCServo(float angle) {
+    // -10 mean 0 and 10 mean 1250 and 0 means 1250
+    if (angle > 90.0) {
+        angle = 90.0;
+    }
+    if (angle < -90.0) {
+        angle = -90.0;
+    }
+
+    float scaled_val = (angle + 90.0) * 0.08 / 180.0 + 0.04;
+
+    EPwm8Regs.CMPA.bit.CMPA = (float)(EPwm8Regs.TBPRD) * scaled_val;
+}
+
+void setEPWM8B_RCServo(float angle) {
+    if (angle > 90.0) {
+        angle = 90.0;
+    }
+    if (angle < -90.0) {
+        angle = -90.0;
+    }
+
+    float scaled_val = (angle + 90.0) * 0.08 / 180.0 + 0.04;
+
+    EPwm8Regs.CMPB.bit.CMPB = (float)(EPwm8Regs.TBPRD) * scaled_val;
 }
 
 void main(void) {
@@ -277,7 +335,7 @@ void main(void) {
     // Configure CPU-Timer 0, 1, and 2 to interrupt every given period:
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
-    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 20000);
+    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 160000);
     ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000);
 
     // Enable CpuTimer Interrupt bit TIE
@@ -287,6 +345,7 @@ void main(void) {
 
     init_serialSCIA(&SerialA, 115200);
 
+    //qiyuanx3: EPWM12A settings
     EPwm12Regs.TBCTL.bit.CTRMODE = 0;
     EPwm12Regs.TBCTL.bit.CLKDIV = 0;
     EPwm12Regs.TBCTL.bit.FREE_SOFT = 2;
@@ -298,6 +357,7 @@ void main(void) {
     EPwm12Regs.AQCTLA.bit.CAU = 1;
     EPwm12Regs.TBPHS.bit.TBPHS = 0;
 
+    //qiyuanx3: EPWM2A and B settings
     EPwm2Regs.TBCTL.bit.CTRMODE = 0;
     EPwm2Regs.TBCTL.bit.CLKDIV = 0;
     EPwm2Regs.TBCTL.bit.FREE_SOFT = 2;
@@ -308,34 +368,35 @@ void main(void) {
     EPwm2Regs.AQCTLA.bit.ZRO = 2;
     EPwm2Regs.AQCTLA.bit.CAU = 1;
     EPwm2Regs.TBPHS.bit.TBPHS = 0;
-
     EPwm2Regs.AQCTLB.bit.ZRO = 2;
-
     EPwm2Regs.AQCTLB.bit.CBU = 1;
     EPwm2Regs.CMPB.bit.CMPB = 1250;
 
+    //qiyuanx3: EPWM8A and B settings
     EPwm8Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm8Regs.TBCTL.bit.CLKDIV = 0;
+    EPwm8Regs.TBCTL.bit.CLKDIV = 4;
     EPwm8Regs.TBCTL.bit.FREE_SOFT = 2;
     EPwm8Regs.TBCTL.bit.PHSEN = 0;
     EPwm8Regs.TBCTR = 0;
-    EPwm8Regs.TBPRD = 2500;
+    EPwm8Regs.TBPRD = 62500;
     EPwm8Regs.CMPA.bit.CMPA = 1250;
     EPwm8Regs.AQCTLA.bit.ZRO = 2;
     EPwm8Regs.AQCTLA.bit.CAU = 1;
     EPwm8Regs.TBPHS.bit.TBPHS = 0;
     EPwm8Regs.AQCTLB.bit.CBU = 1;
+    EPwm8Regs.AQCTLB.bit.ZRO = 2;
     EPwm8Regs.CMPB.bit.CMPB = 1250;
 
+    //qiyuanx3: EPWM9A settings
     EPwm9Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm9Regs.TBCTL.bit.CLKDIV = 0;
+    EPwm9Regs.TBCTL.bit.CLKDIV = 1;
     EPwm9Regs.TBCTL.bit.FREE_SOFT = 2;
     EPwm9Regs.TBCTL.bit.PHSEN = 0;
     EPwm9Regs.TBCTR = 0;
     EPwm9Regs.TBPRD = 2500;
-    EPwm9Regs.CMPA.bit.CMPA = 1250;
-    EPwm9Regs.AQCTLA.bit.ZRO = 2;
-    EPwm9Regs.AQCTLA.bit.CAU = 1;
+    // EPwm9Regs.CMPA.bit.CMPA = 1250;
+    EPwm9Regs.AQCTLA.bit.ZRO = 3;
+    EPwm9Regs.AQCTLA.bit.CAU = 0;
     EPwm9Regs.TBPHS.bit.TBPHS = 0;
 
     GPIO_SetupPinMux(22, GPIO_MUX_CPU1, 5);
@@ -344,7 +405,6 @@ void main(void) {
     GPIO_SetupPinMux(14, GPIO_MUX_CPU1, 1);
     GPIO_SetupPinMux(15, GPIO_MUX_CPU1, 1);
     GPIO_SetupPinMux(16, GPIO_MUX_CPU1, 5);
-
 
     EALLOW;                             // Below are protected registers
     GpioCtrlRegs.GPAPUD.bit.GPIO2 = 1;  // For EPWM2A
@@ -380,11 +440,9 @@ void main(void) {
     while (1) {
         if (UARTPrint == 1) {
             serial_printf(&SerialA, "Num Timer2:%ld Num SerialRX: %ld\r\n", numTimer2calls, numRXA);
-            serial_printf(&SerialA, "Control Effort :%f\r\n", controleffort);
+
             UARTPrint = 0;
         }
-        
-
     }
 }
 
@@ -413,7 +471,7 @@ __interrupt void cpu_timer0_isr(void) {
     //    }
 
     if ((numTimer0calls % 25) == 0) {
-        //displayLEDletter(LEDdisplaynum);
+        // displayLEDletter(LEDdisplaynum);
         LEDdisplaynum++;
         if (LEDdisplaynum == 0xFFFF) { // prevent roll over exception
             LEDdisplaynum = 0;
@@ -430,55 +488,63 @@ __interrupt void cpu_timer0_isr(void) {
 }
 
 // cpu_timer1_isr - CPU Timer1 ISR
-__interrupt void cpu_timer1_isr(void) { numTimer1calls++; }
+__interrupt void cpu_timer1_isr(void) { 
+    numTimer1calls++; 
+    EPwm9Regs.TBPRD = mysong[song_index]; //qiyaunx3: play song
+
+    //qiyuanx3:stop
+    if (song_index == sizeof(mysong)/sizeof(songarray[0]) - 1) {
+        GPIO_SetupPinMux(16, GPIO_MUX_CPU1, 0);
+        GpioDataRegs.GPACLEAR.bit.GPIO16 = 1;
+    }
+    song_index++;
+}
 
 // cpu_timer2_isr CPU Timer2 ISR
 __interrupt void cpu_timer2_isr(void) {
     // Blink LaunchPad Blue LED
     GpioDataRegs.GPATOGGLE.bit.GPIO31 = 1;
-    // if (EPwm12Regs.CMPA.bit.CMPA < EPwm12Regs.TBPRD && updown == 0) {
-    //     EPwm12Regs.CMPA.bit.CMPA++;
-    //     updown = 1;
-    // } else if (EPwm12Regs.C) {
-    //     EPwm12Regs.CMPA.bit.CMPA--;
-    // }
 
-    
-
+    // qiyuanx3: Motor control
     if (controleffort > 10) {
         updown_motor = 1;
-    }
-    else if (controleffort < -10) {
+    } else if (controleffort < -10) {
         updown_motor = 0;
-    } 
+    }
     if (updown_motor == 0) {
-        controleffort+=0.01;
+        controleffort += 0.01;
+    } else if (updown_motor == 1) {
+        controleffort -= 0.01;
     }
-    else if (updown_motor == 1) {
-        controleffort-=0.01;
-    }
-    
+
     setEPWM2A(controleffort);
     setEPWM2B(controleffort);
 
-    
     if (EPwm12Regs.CMPA.bit.CMPA == EPwm12Regs.TBPRD) {
         updown = 1;
-    }
-    else if (EPwm12Regs.CMPA.bit.CMPA == 0) {
+    } else if (EPwm12Regs.CMPA.bit.CMPA == 0) {
         updown = 0;
-        
     }
     if (updown == 0) {
         EPwm12Regs.CMPA.bit.CMPA++;
-    }
-    else if (updown == 1) {
+    } else if (updown == 1) {
         EPwm12Regs.CMPA.bit.CMPA--;
     }
 
+    // qiyuanx3: RC servo
+    if (angle > 90) {
+        updown_RC = 1;
+    } else if (angle < -90) {
+        updown_RC = 0;
+    }
+    if (updown_RC == 0) {
+        angle += 0.01;
+    } else if (updown_RC == 1) {
+        angle -= 0.01;
+    }
 
-    
-    
+    setEPWM8A_RCServo(angle);
+    setEPWM8B_RCServo(angle);
 
     numTimer2calls++;
 
