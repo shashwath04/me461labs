@@ -47,13 +47,13 @@ uint32_t fir_order = 22;
 // b is the filter coefficients
 // float b[5] = {0.2, 0.2, 0.2, 0.2, 0.2}; // 0.2 is 1/5th therefore a 5 point average
 float b[22] = {-4.3821884069440866e-04, 6.0807670026235064e-04, 3.1406253912868204e-03, 8.7768009786225315e-03,
-                   1.8745713870486094e-02,  3.3384353372803752e-02, 5.1837442737665093e-02, 7.2071154861486783e-02,
-                   9.1222809663499521e-02,  1.0620981157506326e-01, 1.1444142968951818e-01, 1.1444142968951818e-01,
-                   1.0620981157506326e-01,  9.1222809663499521e-02, 7.2071154861486783e-02, 5.1837442737665093e-02,
-                   3.3384353372803752e-02,  1.8745713870486094e-02, 8.7768009786225315e-03, 3.1406253912868204e-03,
-                   6.0807670026235064e-04,  -4.3821884069440866e-04};
+               1.8745713870486094e-02,  3.3384353372803752e-02, 5.1837442737665093e-02, 7.2071154861486783e-02,
+               9.1222809663499521e-02,  1.0620981157506326e-01, 1.1444142968951818e-01, 1.1444142968951818e-01,
+               1.0620981157506326e-01,  9.1222809663499521e-02, 7.2071154861486783e-02, 5.1837442737665093e-02,
+               3.3384353372803752e-02,  1.8745713870486094e-02, 8.7768009786225315e-03, 3.1406253912868204e-03,
+               6.0807670026235064e-04,  -4.3821884069440866e-04};
 
-float kx_prev[21] = {};
+float xk_prev[21] = {0};
 // Count variables
 uint32_t numTimer0calls = 0;
 uint32_t numTimer1calls = 0;
@@ -552,32 +552,31 @@ __interrupt void ADCD_ISR(void) {
     adcd0result = AdcdResultRegs.ADCRESULT0;
     adcd1result = AdcdResultRegs.ADCRESULT1;
 
+    // Here covert ADCIND0, ADCIND1 to volts
     adcind0_scaled = adcd0result * 3.0 / 4096.0;
 
-    // Here covert ADCIND0, ADCIND1 to volts
+    
+    
+    //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
     xk = adcind0_scaled;
-    // yk = b[0] * xk + b[1] * xk_1 + b[2] * xk_2 + b[3] * xk_3 + b[4] * xk_4;
     yk = 0;
+
+    //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
     for (int i = 0; i < fir_order; i++) {
         if (i == 0) {
             yk += b[i] * xk;
         } else {
-            yk += b[i] * kx_prev[i - 1];
+            yk += b[i] * xk_prev[i - 1];
         }
     }
-    // Save past states before exiting from the function so that next sample they are the older state
-    for (int i = 0; i < fir_order - 1; i++) {
-        if (i == 0) {
-            kx_prev[0] = xk;
-        } else {
-            kx_prev[i] = kx_prev[i - 1];
-        }
+
+    //st52_qiyuanx3: update the past states, start from the end, the value updates to the value of the index 1 before
+    for (int i = fir_order - 2; i > 0; i--) {
+        xk_prev[i] = xk_prev[i - 1];
     }
-    // xk_4 = xk_3;
-    // xk_3 = xk_2;
-    // xk_2 = xk_1;
-    // xk_1 = xk;
-    // Here write yk to DACA channel
+    xk_prev[0] = xk; // st52_qiyuanx3: the first value will update to xk
+
+    // st52_qiyuanx3:  write yk to DACA channel
     setDACA(yk);
 
     numADCDcalls += 1;
