@@ -32,34 +32,240 @@ __interrupt void cpu_timer1_isr(void);
 __interrupt void cpu_timer2_isr(void);
 __interrupt void SWI_isr(void);
 __interrupt void ADCD_ISR(void);
+__interrupt void ADCA_ISR(void);
+__interrupt void ADCB_ISR(void);
 
 // st52_qiyuanx3: Global variables for simple 5 tap averaging filter
 
-float xk = 0;
+float xk3 = 0;
+float xk2 = 0;
+
+
 float xk_1 = 0;
 float xk_2 = 0;
 float xk_3 = 0;
 float xk_4 = 0;
 // yk is the filtered value
-float yk = 0;
 
-uint32_t fir_order = 22;
+float yk3 = 0;
+float yk2 = 0;
+
+uint32_t fir_order = 201;
 // b is the filter coefficients
 // float b[5] = {0.2, 0.2, 0.2, 0.2, 0.2}; // 0.2 is 1/5th therefore a 5 point average
-float b[22] = {-4.3821884069440866e-04, 6.0807670026235064e-04, 3.1406253912868204e-03, 8.7768009786225315e-03,
-               1.8745713870486094e-02,  3.3384353372803752e-02, 5.1837442737665093e-02, 7.2071154861486783e-02,
-               9.1222809663499521e-02,  1.0620981157506326e-01, 1.1444142968951818e-01, 1.1444142968951818e-01,
-               1.0620981157506326e-01,  9.1222809663499521e-02, 7.2071154861486783e-02, 5.1837442737665093e-02,
-               3.3384353372803752e-02,  1.8745713870486094e-02, 8.7768009786225315e-03, 3.1406253912868204e-03,
-               6.0807670026235064e-04,  -4.3821884069440866e-04};
+float b[201]={	0.0000000000000000e+00,
+	5.9310714489336756e-06,
+	-3.1622967769327651e-05,
+	-4.8555068453528292e-05,
+	2.5439713965310787e-05,
+	1.0636311700700322e-04,
+	4.0943002353631231e-05,
+	-1.3032220577822534e-04,
+	-1.5574891529465397e-04,
+	7.0196727362914057e-05,
+	2.6540563723290351e-04,
+	9.5064239493256373e-05,
+	-2.8658107227730101e-04,
+	-3.2812869717536937e-04,
+	1.4279219385660838e-04,
+	5.2410188833392109e-04,
+	1.8294277247625515e-04,
+	-5.3896326106340239e-04,
+	-6.0433916889949103e-04,
+	2.5796617561388676e-04,
+	9.2991400672171173e-04,
+	3.1911873330115218e-04,
+	-9.2506458625588820e-04,
+	-1.0213653948466521e-03,
+	4.2955897881453775e-04,
+	1.5265299949334193e-03,
+	5.1669962831012530e-04,
+	-1.4780355805854024e-03,
+	-1.6110575355229172e-03,
+	6.6918892199691841e-04,
+	2.3496157697640721e-03,
+	7.8606155208158456e-04,
+	-2.2232290083023733e-03,
+	-2.3968374448656050e-03,
+	9.8502121171656831e-04,
+	3.4229316777166867e-03,
+	1.1336843329482866e-03,
+	-3.1752530451682115e-03,
+	-3.3908650312083569e-03,
+	1.3807326691208015e-03,
+	4.7551466832362818e-03,
+	1.5612214506753590e-03,
+	-4.3356876674700917e-03,
+	-4.5919145822890450e-03,
+	1.8547647431397482e-03,
+	6.3376381887008809e-03,
+	2.0648899499666564e-03,
+	-5.6916767433324135e-03,
+	-5.9841621743526663e-03,
+	2.3999370146009441e-03,
+	8.1434953680532256e-03,
+	2.6352425605786147e-03,
+	-7.2155447007137578e-03,
+	-7.5370184926852038e-03,
+	3.0034667501062182e-03,
+	1.0127854273180437e-02,
+	3.2573555775766913e-03,
+	-8.8655093390223368e-03,
+	-9.2060620474939629e-03,
+	3.6474090771480448e-03,
+	1.2229590813161625e-02,
+	3.9114340065166935e-03,
+	-1.0587477461206914e-02,
+	-1.0935042168719135e-02,
+	4.3094994905231235e-03,
+	1.4374291177478096e-02,
+	4.5738026088351863e-03,
+	-1.2317824362199525e-02,
+	-1.2658836216425077e-02,
+	4.9643483253135274e-03,
+	1.6478317025112887e-02,
+	5.2182204687492078e-03,
+	-1.3986978809293973e-02,
+	-1.4307168102935730e-02,
+	5.5849081756906699e-03,
+	1.8453693204446470e-02,
+	5.8174301026213534e-03,
+	-1.5523568556509704e-02,
+	-1.5808831901388178e-02,
+	6.1441123839398966e-03,
+	2.0213476370381896e-02,
+	6.3448321692533404e-03,
+	-1.6858833233933300e-02,
+	-1.7096120342050141e-02,
+	6.6165676009443137e-03,
+	2.1677219511235468e-02,
+	6.7761652158435911e-03,
+	-1.7930985773174448e-02,
+	-1.8109137162612209e-02,
+	6.9801773411530743e-03,
+	2.2776133888324963e-02,
+	7.0910676403608403e-03,
+	-1.8689202686073811e-02,
+	-1.8799676503551140e-02,
+	7.2175770031319480e-03,
+	2.3457567606047107e-02,
+	7.2744064368391557e-03,
+	-1.9096947799859182e-02,
+	-1.9134381704657800e-02,
+	7.3172737971483352e-03,
+	2.3688467798905991e-02,
+	7.3172737971483352e-03,
+	-1.9134381704657800e-02,
+	-1.9096947799859182e-02,
+	7.2744064368391557e-03,
+	2.3457567606047107e-02,
+	7.2175770031319480e-03,
+	-1.8799676503551140e-02,
+	-1.8689202686073811e-02,
+	7.0910676403608403e-03,
+	2.2776133888324963e-02,
+	6.9801773411530743e-03,
+	-1.8109137162612209e-02,
+	-1.7930985773174448e-02,
+	6.7761652158435911e-03,
+	2.1677219511235468e-02,
+	6.6165676009443137e-03,
+	-1.7096120342050141e-02,
+	-1.6858833233933300e-02,
+	6.3448321692533404e-03,
+	2.0213476370381896e-02,
+	6.1441123839398966e-03,
+	-1.5808831901388178e-02,
+	-1.5523568556509704e-02,
+	5.8174301026213534e-03,
+	1.8453693204446470e-02,
+	5.5849081756906699e-03,
+	-1.4307168102935730e-02,
+	-1.3986978809293973e-02,
+	5.2182204687492078e-03,
+	1.6478317025112887e-02,
+	4.9643483253135274e-03,
+	-1.2658836216425077e-02,
+	-1.2317824362199525e-02,
+	4.5738026088351863e-03,
+	1.4374291177478096e-02,
+	4.3094994905231235e-03,
+	-1.0935042168719135e-02,
+	-1.0587477461206914e-02,
+	3.9114340065166935e-03,
+	1.2229590813161625e-02,
+	3.6474090771480448e-03,
+	-9.2060620474939629e-03,
+	-8.8655093390223368e-03,
+	3.2573555775766913e-03,
+	1.0127854273180437e-02,
+	3.0034667501062182e-03,
+	-7.5370184926852038e-03,
+	-7.2155447007137578e-03,
+	2.6352425605786147e-03,
+	8.1434953680532256e-03,
+	2.3999370146009441e-03,
+	-5.9841621743526663e-03,
+	-5.6916767433324135e-03,
+	2.0648899499666564e-03,
+	6.3376381887008809e-03,
+	1.8547647431397482e-03,
+	-4.5919145822890450e-03,
+	-4.3356876674700917e-03,
+	1.5612214506753590e-03,
+	4.7551466832362818e-03,
+	1.3807326691208015e-03,
+	-3.3908650312083569e-03,
+	-3.1752530451682115e-03,
+	1.1336843329482866e-03,
+	3.4229316777166867e-03,
+	9.8502121171656831e-04,
+	-2.3968374448656050e-03,
+	-2.2232290083023733e-03,
+	7.8606155208158456e-04,
+	2.3496157697640721e-03,
+	6.6918892199691841e-04,
+	-1.6110575355229172e-03,
+	-1.4780355805854024e-03,
+	5.1669962831012530e-04,
+	1.5265299949334193e-03,
+	4.2955897881453775e-04,
+	-1.0213653948466521e-03,
+	-9.2506458625588820e-04,
+	3.1911873330115218e-04,
+	9.2991400672171173e-04,
+	2.5796617561388676e-04,
+	-6.0433916889949103e-04,
+	-5.3896326106340239e-04,
+	1.8294277247625515e-04,
+	5.2410188833392109e-04,
+	1.4279219385660838e-04,
+	-3.2812869717536937e-04,
+	-2.8658107227730101e-04,
+	9.5064239493256373e-05,
+	2.6540563723290351e-04,
+	7.0196727362914057e-05,
+	-1.5574891529465397e-04,
+	-1.3032220577822534e-04,
+	4.0943002353631231e-05,
+	1.0636311700700322e-04,
+	2.5439713965310787e-05,
+	-4.8555068453528292e-05,
+	-3.1622967769327651e-05,
+	5.9310714489336756e-06,
+	0.0000000000000000e+00};
 
-float xk_prev[21] = {0};
+
+float xk3_prev[200] = {0};
+float xk2_prev[200] = {0};
+
 // Count variables
 uint32_t numTimer0calls = 0;
 uint32_t numTimer1calls = 0;
 uint32_t numTimer2calls = 0;
 
 uint32_t numADCDcalls = 0;
+uint32_t numADCAcalls = 0;
 
 uint32_t numSWIcalls = 0;
 extern uint32_t numRXA;
@@ -70,6 +276,17 @@ uint16_t LEDdisplaynum = 0;
 uint16_t adcd0result;
 uint16_t adcd1result;
 float adcind0_scaled;
+
+
+// st52_qiyuanx3: definding sclaing for for adca results as well as adcb results
+uint16_t adca2result;
+uint16_t adca3result;
+
+float adcina2_scaled;
+float adcina3_scaled;
+
+uint16_t adcb0result;
+float adcb0_scaled;
 
 // This function sets DACA to the voltage between 0.0V and 3.0V passed to this function.
 // If outside 0.0V to 3.0V the output is saturated at 0.0V to 3.0V
@@ -252,6 +469,10 @@ void main(void) {
     GPIO_SetupPinMux(8, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(8, GPIO_INPUT, GPIO_PULLUP);
 
+
+    //GPIO52
+    GPIO_SetupPinMux(52, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinOptions(52, GPIO_OUTPUT, GPIO_PUSHPULL);
     // Clear all interrupts and initialize PIE vector table:
     // Disable CPU interrupts
     DINT;
@@ -292,6 +513,8 @@ void main(void) {
     PieVectTable.EMIF_ERROR_INT = &SWI_isr;
 
     PieVectTable.ADCD1_INT = &ADCD_ISR;
+    PieVectTable.ADCA1_INT = &ADCA_ISR;
+    PieVectTable.ADCB1_INT = &ADCB_ISR;
     EDIS; // This is needed to disable write to EALLOW protected registers
 
     // Initialize the CpuTimers Device Peripheral. This function can be
@@ -327,6 +550,21 @@ void main(void) {
     EDIS;
 
     EALLOW;
+    EPwm7Regs.ETSEL.bit.SOCAEN = 0;     // Disable SOC on A group
+    EPwm7Regs.TBCTL.bit.CTRMODE = 3;    // freeze counter
+    EPwm7Regs.ETSEL.bit.SOCASEL = 2;    // Select Event when counter equal to PRD
+    EPwm7Regs.ETPS.bit.SOCAPRD = 1;     // Generate pulse on 1st event (“pulse” is the same as“trigger”)
+    EPwm7Regs.TBCTR = 0x0;              // Clear counter
+    EPwm7Regs.TBPHS.bit.TBPHS = 0x0000; // Phase is 0
+    EPwm7Regs.TBCTL.bit.PHSEN = 0;      // Disable phase loading
+    EPwm7Regs.TBCTL.bit.CLKDIV = 0;     // divide by 1 50Mhz Clock
+    EPwm7Regs.TBPRD = 5000;            // Set Period to 1ms sample. Input clock is 50MHz.
+    // Notice here that we are not setting CMPA or CMPB because we are not using the PWM signal
+    EPwm7Regs.ETSEL.bit.SOCAEN = 1;  // enable SOCA
+    EPwm7Regs.TBCTL.bit.CTRMODE = 0; // unfreeze, and enter up count mode
+    EDIS;
+
+    EALLOW;
     // write configurations for all ADCs ADCA, ADCB, ADCC, ADCD
     AdcaRegs.ADCCTL2.bit.PRESCALE = 6;                                 // set ADCCLK divider to /4
     AdcbRegs.ADCCTL2.bit.PRESCALE = 6;                                 // set ADCCLK divider to /4
@@ -352,19 +590,20 @@ void main(void) {
     // Many statements commented out, To be used when using ADCA or ADCB.
 
     // ADCA
-    // AdcaRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have to be A0
-    // AdcaRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    // AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = ???;// EPWM5 ADCSOCA or another trigger you choose will trigger SOC0
-    // AdcaRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have tobe A1
-    // AdcaRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    // AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = ???;// EPWM5 ADCSOCA or another trigger you choose willtrigger SOC1
-    // AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will setINT1 flag ADCA1
-    // AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
-    // AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+    AdcaRegs.ADCSOC0CTL.bit.CHSEL = 2; //SOC0 will convert Channel you choose Does not have to be A0
+    AdcaRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = 13;// EPWM5 ADCSOCA or another trigger you choose will trigger SOC0
+    AdcaRegs.ADCSOC1CTL.bit.CHSEL = 3; //SOC1 will convert Channel you choose Does not have tobe A1
+    AdcaRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = 13;// EPWM5 ADCSOCA or another trigger you choose willtrigger SOC1
+    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 1; //set to last SOC that is converted and it will setINT1 flag ADCA1
+    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+   
     // ADCB
-    // AdcbRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have tobe B0
-    // AdcbRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    // AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = ???; // EPWM5 ADCSOCA or another trigger you choose willtrigger SOC0
+    AdcbRegs.ADCSOC0CTL.bit.CHSEL = 4; //SOC0 will convert Channel you choose Does not have tobe B0
+    AdcbRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = 17; // EPWM7
     // AdcbRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have tobe B1
     // AdcbRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
     // AdcbRegs.ADCSOC1CTL.bit.TRIGSEL = ???; // EPWM5 ADCSOCA or another trigger you choose willtrigger SOC1
@@ -374,9 +613,9 @@ void main(void) {
     // AdcbRegs.ADCSOC3CTL.bit.CHSEL = ???; //SOC3 will convert Channel you choose Does not have tobe B3
     // AdcbRegs.ADCSOC3CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
     // AdcbRegs.ADCSOC3CTL.bit.TRIGSEL = ???; // EPWM5 ADCSOCA or another trigger you choose willtrigger SOC3
-    // AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will setINT1 flag ADCB1
-    // AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
-    // AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+    AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //set to last SOC that is converted and it will setINT1 flag ADCB1
+    AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
+    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
 
     // ADCD
     AdcdRegs.ADCSOC0CTL.bit.CHSEL = 0;    // set SOC0 to convert pin D0
@@ -420,6 +659,14 @@ void main(void) {
 
     // Enable ADCD1 in PIE: Group 1 interrupt 6
     PieCtrlRegs.PIEIER1.bit.INTx6 = 1;
+
+    // st52_qiyuanx3: Enable ADCA1 in PIE: Group 1 interrupt 1
+    PieCtrlRegs.PIEIER1.bit.INTx1 = 1;
+
+    // st52_qiyuanx3: Enable ADCB1 in PIE: Group 1 interrupt 1
+    PieCtrlRegs.PIEIER1.bit.INTx2 = 1;
+
+
     // Enable SWI in the PIE: Group 12 interrupt 9
     PieCtrlRegs.PIEIER12.bit.INTx9 = 1;
 
@@ -433,7 +680,7 @@ void main(void) {
     while (1) {
         if (UARTPrint == 1) {
             // serial_printf(&SerialA, "Num Timer2:%ld Num SerialRX: %ld\r\n", numTimer2calls, numRXA);
-            serial_printf(&SerialA, "ADCD Voltage:%f\r\n", adcind0_scaled);
+            serial_printf(&SerialA, "Microphone:%f\r\n", yk3);
 
             UARTPrint = 0;
         }
@@ -548,41 +795,143 @@ __interrupt void cpu_timer2_isr(void) {
 //     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 // }
 
-__interrupt void ADCD_ISR(void) {
-    adcd0result = AdcdResultRegs.ADCRESULT0;
-    adcd1result = AdcdResultRegs.ADCRESULT1;
+
+__interrupt void ADCB_ISR(void) {
+    adcb0result = AdcbResultRegs.ADCRESULT0;
+
 
     // Here covert ADCIND0, ADCIND1 to volts
-    adcind0_scaled = adcd0result * 3.0 / 4096.0;
+    adcb0_scaled = adcb0result * 3.0 / 4096.0;
 
-    
-    
-    //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
-    xk = adcind0_scaled;
-    yk = 0;
+    GpioDataRegs.GPBSET.bit.GPIO52 = 1;
+        //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
+    xk3 = adcb0_scaled;
+    yk3 = 0;
 
     //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
     for (int i = 0; i < fir_order; i++) {
         if (i == 0) {
-            yk += b[i] * xk;
+            yk3 += b[i] * xk3;
         } else {
-            yk += b[i] * xk_prev[i - 1];
+            yk3 += b[i] * xk3_prev[i - 1];
         }
     }
 
     //st52_qiyuanx3: update the past states, start from the end, the value updates to the value of the index 1 before
     for (int i = fir_order - 2; i > 0; i--) {
-        xk_prev[i] = xk_prev[i - 1];
+        xk3_prev[i] = xk3_prev[i - 1];
     }
-    xk_prev[0] = xk; // st52_qiyuanx3: the first value will update to xk
+    xk3_prev[0] = xk3; // st52_qiyuanx3: the first value will update to xk
 
-    // st52_qiyuanx3:  write yk to DACA channel
-    setDACA(yk);
+    GpioDataRegs.GPBCLEAR.bit.GPIO52 = 1;
 
-    numADCDcalls += 1;
-    if ((numADCDcalls % 100) == 0) {
+    setDACA(yk3+1.5);
+
+    numADCAcalls += 1;
+    if ((numADCAcalls % 100) == 0) {
         UARTPrint = 1;
     }
+    // Print ADCIND0 and ADCIND1’s voltage value to Tera Term every 100ms
+    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; // clear interrupt flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+__interrupt void ADCA_ISR(void) {
+    adca2result = AdcaResultRegs.ADCRESULT0;
+    adca3result = AdcaResultRegs.ADCRESULT1;
+
+    // // Here covert ADCIND0, ADCIND1 to volts
+    // adcina2_scaled = adca2result * 3.0 / 4096.0;
+    // adcina3_scaled = adca3result * 3.0 / 4096.0;
+
+    
+    
+    // //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
+    // xk3 = adcina3_scaled;
+    // yk3 = 0;
+
+    // //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
+    // for (int i = 0; i < fir_order; i++) {
+    //     if (i == 0) {
+    //         yk3 += b[i] * xk3;
+    //     } else {
+    //         yk3 += b[i] * xk3_prev[i - 1];
+    //     }
+    // }
+
+    // //st52_qiyuanx3: update the past states, start from the end, the value updates to the value of the index 1 before
+    // for (int i = fir_order - 2; i > 0; i--) {
+    //     xk3_prev[i] = xk3_prev[i - 1];
+    // }
+    // xk3_prev[0] = xk3; // st52_qiyuanx3: the first value will update to xk
+
+    
+
+
+    // //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
+    // xk2 = adcina2_scaled;
+    // yk2 = 0;
+
+    // //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
+    // for (int i = 0; i < fir_order; i++) {
+    //     if (i == 0) {
+    //         yk2 += b[i] * xk2;
+    //     } else {
+    //         yk2 += b[i] * xk2_prev[i - 1];
+    //     }
+    // }
+
+    // //st52_qiyuanx3: update the past states, start from the end, the value updates to the value of the index 1 before
+    // for (int i = fir_order - 2; i > 0; i--) {
+    //     xk2_prev[i] = xk2_prev[i - 1];
+    // }
+    // xk2_prev[0] = xk2; // st52_qiyuanx3: the first value will update to xk
+
+    // numADCAcalls += 1;
+    // if ((numADCAcalls % 100) == 0) {
+    //     UARTPrint = 1;
+    // }
+    // Print ADCIND0 and ADCIND1’s voltage value to Tera Term every 100ms
+    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; // clear interrupt flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+
+__interrupt void ADCD_ISR(void) {
+    adcd0result = AdcdResultRegs.ADCRESULT0;
+    adcd1result = AdcdResultRegs.ADCRESULT1;
+
+    // // Here covert ADCIND0, ADCIND1 to volts
+    // adcind0_scaled = adcd0result * 3.0 / 4096.0;
+
+    
+    
+    // //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
+    // xk3 = adcind0_scaled;
+    // yk3 = 0;
+
+    // //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
+    // for (int i = 0; i < fir_order; i++) {
+    //     if (i == 0) {
+    //         yk3 += b[i] * xk3;
+    //     } else {
+    //         yk3 += b[i] * xk_prev[i - 1];
+    //     }
+    // }
+
+    // //st52_qiyuanx3: update the past states, start from the end, the value updates to the value of the index 1 before
+    // for (int i = fir_order - 2; i > 0; i--) {
+    //     xk_prev[i] = xk_prev[i - 1];
+    // }
+    // xk_prev[0] = xk3; // st52_qiyuanx3: the first value will update to xk
+
+    // // st52_qiyuanx3:  write yk to DACA channel
+    // setDACA(yk3);
+
+    // numADCDcalls += 1;
+    // if ((numADCDcalls % 100) == 0) {
+    //     UARTPrint = 1;
+    // }
     // Print ADCIND0 and ADCIND1’s voltage value to Tera Term every 100ms
     AdcdRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; // clear interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
