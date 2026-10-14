@@ -36,7 +36,6 @@ __interrupt void ADCA_ISR(void);
 __interrupt void ADCB_ISR(void);
 
 // st52_qiyuanx3: Global variables for simple 5 tap averaging filter
-
 float xk3 = 0;
 float xk2 = 0;
 
@@ -50,9 +49,11 @@ float xk_4 = 0;
 float yk3 = 0;
 float yk2 = 0;
 
+//st53_qiyaunx3: 201 coefficients for 200 order filter
 uint32_t fir_order = 201;
 // b is the filter coefficients
-// float b[5] = {0.2, 0.2, 0.2, 0.2, 0.2}; // 0.2 is 1/5th therefore a 5 point average
+
+// st52_qiyuanx3: coefficients for 200 order FIR filter (bandpass)
 float b[201]={	0.0000000000000000e+00,
 	5.9310714489336756e-06,
 	-3.1622967769327651e-05,
@@ -255,7 +256,7 @@ float b[201]={	0.0000000000000000e+00,
 	5.9310714489336756e-06,
 	0.0000000000000000e+00};
 
-
+//st52_qiyuanx3: previous value arrays
 float xk3_prev[200] = {0};
 float xk2_prev[200] = {0};
 
@@ -293,6 +294,8 @@ float adcb0_scaled;
 // Example code
 // float myu = 2.25;
 // setDACA(myu); // DACA will now output 2.25 Volts
+
+//st52_qiyuanx3: takes a voltage and sets the DAC, digital value saturates between 0-4095
 void setDACA(float dacouta0) {
     int16_t DACOutInt = 0;
     DACOutInt = dacouta0 * 4096.0 / 3.0; // perform scaling of 0.0 – almost 3.0V to 0 - 4095
@@ -470,7 +473,7 @@ void main(void) {
     GPIO_SetupPinOptions(8, GPIO_INPUT, GPIO_PULLUP);
 
 
-    //GPIO52
+    //st52_qiyuanx3: GPIO52 setup as GPIO52 and output pin
     GPIO_SetupPinMux(52, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(52, GPIO_OUTPUT, GPIO_PUSHPULL);
     // Clear all interrupts and initialize PIE vector table:
@@ -590,18 +593,18 @@ void main(void) {
     // Many statements commented out, To be used when using ADCA or ADCB.
 
     // ADCA
-    AdcaRegs.ADCSOC0CTL.bit.CHSEL = 2; //SOC0 will convert Channel you choose Does not have to be A0
+    AdcaRegs.ADCSOC0CTL.bit.CHSEL = 2; //st52_qiyuanx3: SOC0 convert ADCINA2
     AdcaRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = 13;// EPWM5 ADCSOCA or another trigger you choose will trigger SOC0
-    AdcaRegs.ADCSOC1CTL.bit.CHSEL = 3; //SOC1 will convert Channel you choose Does not have tobe A1
+    AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = 13;// st52_qiyuanx3: trigger using EPWM5
+    AdcaRegs.ADCSOC1CTL.bit.CHSEL = 3; //st52_qiyuanx3: SOC0 convert ADCINA2
     AdcaRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = 13;// EPWM5 ADCSOCA or another trigger you choose willtrigger SOC1
-    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 1; //set to last SOC that is converted and it will setINT1 flag ADCA1
+    AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = 13;// st52_qiyuanx3: trigger using EPWM5
+    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = 1; // st52_qiyuanx3: SOC1 is the last
     AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
     AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
    
     // ADCB
-    AdcbRegs.ADCSOC0CTL.bit.CHSEL = 4; //SOC0 will convert Channel you choose Does not have tobe B0
+    AdcbRegs.ADCSOC0CTL.bit.CHSEL = 4; //st52_qiyuanx3: SOC0 convert ADCINB4
     AdcbRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
     AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = 17; // EPWM7
     // AdcbRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have tobe B1
@@ -613,7 +616,7 @@ void main(void) {
     // AdcbRegs.ADCSOC3CTL.bit.CHSEL = ???; //SOC3 will convert Channel you choose Does not have tobe B3
     // AdcbRegs.ADCSOC3CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
     // AdcbRegs.ADCSOC3CTL.bit.TRIGSEL = ???; // EPWM5 ADCSOCA or another trigger you choose willtrigger SOC3
-    AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //set to last SOC that is converted and it will setINT1 flag ADCB1
+    AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //st52_qiyuanx3: SOC0 is the last
     AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
     AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
 
@@ -657,7 +660,7 @@ void main(void) {
     // Enable TINT0 in the PIE: Group 1 interrupt 7
     PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
 
-    // Enable ADCD1 in PIE: Group 1 interrupt 6
+    // st52_qiyuanx3:: Enable ADCD1 in PIE: Group 1 interrupt 6
     PieCtrlRegs.PIEIER1.bit.INTx6 = 1;
 
     // st52_qiyuanx3: Enable ADCA1 in PIE: Group 1 interrupt 1
@@ -795,20 +798,23 @@ __interrupt void cpu_timer2_isr(void) {
 //     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 // }
 
-
+//st52_qiyuanx3: ADCB interrupt function
 __interrupt void ADCB_ISR(void) {
-    adcb0result = AdcbResultRegs.ADCRESULT0;
+    
+    adcb0result = AdcbResultRegs.ADCRESULT0; // read result
 
 
-    // Here covert ADCIND0, ADCIND1 to volts
+    // convert result to volatge
     adcb0_scaled = adcb0result * 3.0 / 4096.0;
 
+    //st52_qiyuanx3: set GPIO52 to High
     GpioDataRegs.GPBSET.bit.GPIO52 = 1;
-        //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
+    
+    //st52_qiyuanx3: xk sets to current read value, yk initialize to 0
     xk3 = adcb0_scaled;
     yk3 = 0;
 
-    //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous 21 values 
+    //st52_qiyuanx3: calculates the output voltage yk from coefficients b, current value xk, and previous values 
     for (int i = 0; i < fir_order; i++) {
         if (i == 0) {
             yk3 += b[i] * xk3;
@@ -823,8 +829,10 @@ __interrupt void ADCB_ISR(void) {
     }
     xk3_prev[0] = xk3; // st52_qiyuanx3: the first value will update to xk
 
+    //st52_qiyuanx3: set GPIO52 to Low
     GpioDataRegs.GPBCLEAR.bit.GPIO52 = 1;
 
+    //st52_qiyuanx3: output the value through DACA, add back the offset
     setDACA(yk3+1.5);
 
     numADCAcalls += 1;
@@ -836,6 +844,7 @@ __interrupt void ADCB_ISR(void) {
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
+//st52_qiyuanx3: ADCA interrupt function
 __interrupt void ADCA_ISR(void) {
     adca2result = AdcaResultRegs.ADCRESULT0;
     adca3result = AdcaResultRegs.ADCRESULT1;
@@ -896,7 +905,7 @@ __interrupt void ADCA_ISR(void) {
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
-
+//st52_qiyuanx3: ADCD interrupt function
 __interrupt void ADCD_ISR(void) {
     adcd0result = AdcdResultRegs.ADCRESULT0;
     adcd1result = AdcdResultRegs.ADCRESULT1;
