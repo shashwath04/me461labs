@@ -62,6 +62,14 @@ int16_t gyro_x = 0;
 int16_t gyro_y = 0;
 int16_t gyro_z = 0;
 
+float acc_x_reading = 0;
+float acc_y_reading = 0;
+float acc_z_reading = 0;
+
+float gyro_x_reading = 0;
+float gyro_y_reading = 0;
+float gyro_z_reading = 0;
+
 
 // st52: Adding the setupSpib predefinition
 void setupSpib(void);
@@ -283,53 +291,8 @@ void main(void) {
 
     init_serialSCIA(&SerialA, 115200);
 
-    GPIO_SetupPinMux(9, GPIO_MUX_CPU1, 0);                // Set as GPIO9 and used as DAN28027 SS
-    GPIO_SetupPinOptions(9, GPIO_OUTPUT, GPIO_PUSHPULL);  // Make GPIO9 an Output Pin
-    GpioDataRegs.GPASET.bit.GPIO9 = 1;                    // Initially Set GPIO9/SS High so DAN28027 is not selected
-    GPIO_SetupPinMux(66, GPIO_MUX_CPU1, 0);               // Set as GPIO66 and used as MPU-9250 SS
-    GPIO_SetupPinOptions(66, GPIO_OUTPUT, GPIO_PUSHPULL); // Make GPIO66 an Output Pin
-    GpioDataRegs.GPCSET.bit.GPIO66 = 1;                   // Initially Set GPIO66/SS High so MPU-9250 is not selected
 
-    GPIO_SetupPinMux(63, GPIO_MUX_CPU1, 15); // st52_qiyuanx3: Set GPIO63 pin to SPISIMOB, from pin mux table
-    GPIO_SetupPinMux(64, GPIO_MUX_CPU1, 15); // Set GPIO64 pin to SPISOMIB
-    GPIO_SetupPinMux(65, GPIO_MUX_CPU1, 15); // Set GPIO65 pin to SPICLKB
-
-    EALLOW;
-    GpioCtrlRegs.GPBPUD.bit.GPIO63 = 0; // Enable Pull-ups on SPI PINs Recommended by TI for SPI Pins
-    GpioCtrlRegs.GPCPUD.bit.GPIO64 = 0;
-    GpioCtrlRegs.GPCPUD.bit.GPIO65 = 0;
-    GpioCtrlRegs.GPBQSEL2.bit.GPIO63 = 3; // Set I/O pin to asynchronous mode recommended for SPI
-    GpioCtrlRegs.GPCQSEL1.bit.GPIO64 = 3; // Set I/O pin to asynchronous mode recommended for SPI
-    GpioCtrlRegs.GPCQSEL1.bit.GPIO65 = 3; // Set I/O pin to asynchronous mode recommended for SPI
-    EDIS;
-    // ---------------------------------------------------------------------------
-    SpibRegs.SPICCR.bit.SPISWRESET = 0;   // st52_qiyuanx3: SPISWRESET set to 0 (reset)
-    SpibRegs.SPICTL.bit.CLK_PHASE = 1;    // This happens to be the mode for both the DAN28027 and
-    SpibRegs.SPICCR.bit.CLKPOLARITY = 0;  // The MPU-9250, Mode 01.
-    SpibRegs.SPICTL.bit.MASTER_SLAVE = 1; // Set to SPI Master
-    SpibRegs.SPICCR.bit.SPICHAR =
-        15; // st52_qiyuanx3: 16 bit -> Fh, Set to transmit and receive 16-bits each write to SPITXBUF
-    SpibRegs.SPICTL.bit.TALK = 1;          // Enable transmission
-    SpibRegs.SPIPRI.bit.FREE = 1;          // Free run, continue SPI operation
-    SpibRegs.SPICTL.bit.SPIINTENA = 0;     // Disables the SPI interrupt
-    SpibRegs.SPIBRR.bit.SPI_BIT_RATE = 49; // Set SCLK bit rate to 1 MHz so 1us period. SPI base clock is
-    // 50MHZ. And this setting divides that base clock to create SCLK’s period
-    SpibRegs.SPISTS.all = 0x0000;         // Clear status flags just in case they are set for some reason
-    SpibRegs.SPIFFTX.bit.SPIRST = 1;      // Pull SPI FIFO out of reset, SPI FIFO can resume transmit or receive.
-    SpibRegs.SPIFFTX.bit.SPIFFENA = 1;    // Enable SPI FIFO enhancements
-    SpibRegs.SPIFFTX.bit.TXFIFO = 0;      // Write 0 to reset the FIFO pointer to zero, and hold in reset
-    SpibRegs.SPIFFTX.bit.TXFFINTCLR = 1;  // Write 1 to clear SPIFFTX[TXFFINT] flag just in case it is set
-    SpibRegs.SPIFFRX.bit.RXFIFORESET = 0; // Write 0 to reset the FIFO pointer to zero, and hold in reset
-    SpibRegs.SPIFFRX.bit.RXFFOVFCLR = 1;  // Write 1 to clear SPIFFRX[RXFFOVF] just in case it is set
-    SpibRegs.SPIFFRX.bit.RXFFINTCLR = 1;  // Write 1 to clear SPIFFRX[RXFFINT] flag just in case it is set
-    SpibRegs.SPIFFRX.bit.RXFFIENA = 1;    // Enable the RX FIFO Interrupt. RXFFST >= RXFFIL
-    SpibRegs.SPIFFCT.bit.TXDLY = 16;      // Set delay between transmits to 16 spi clocks. Needed by DAN28027chip
-    SpibRegs.SPICCR.bit.SPISWRESET = 1;   // Pull the SPI out of reset
-    SpibRegs.SPIFFTX.bit.TXFIFO = 1;      // Release transmit FIFO from reset.
-    SpibRegs.SPIFFRX.bit.RXFIFORESET = 1; // Re-enable receive FIFO operation
-    SpibRegs.SPICTL.bit.SPIINTENA = 1;    // Enables SPI interrupt. !! I don’t think this is needed. Need toTest
-    SpibRegs.SPIFFRX.bit.RXFFIL = 16; // Interrupt Level to 16 words received into FIFO causes interrupt.This is just
-                                      // the initial setting for the register. It will be reassigned in below code.
+    setupSpib();
 
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
     // which is connected to CPU-Timer 1, and CPU int 14, which is connected
@@ -359,7 +322,8 @@ void main(void) {
     // IDLE loop. Just sit and loop forever (optional):
     while (1) {
         if (UARTPrint == 1) {
-            serial_printf(&SerialA, "Accel X: %d Gyro X: %d\r\n", acc_x, gyro_x);
+            serial_printf(&SerialA, "Accel X: %f Accel Y: %f Accel Z: %f\r\n", acc_x_reading, acc_y_reading, acc_z_reading);
+            serial_printf(&SerialA, "Gyro X: %f Gyro Y: %f Gyro Z: %f\r\n", gyro_x_reading, gyro_y_reading, gyro_z_reading);
             UARTPrint = 0;
         }
     }
@@ -385,15 +349,15 @@ __interrupt void SWI_isr(void) {
 __interrupt void cpu_timer0_isr(void) {
     numTimer0calls++;
 
-       if ((numTimer0calls%50) == 0) {
-           PieCtrlRegs.PIEIFR12.bit.INTx9 = 1;  // Manually cause the interrupt for the SWI
-       }
+    //    if ((numTimer0calls%50) == 0) {
+    //        PieCtrlRegs.PIEIFR12.bit.INTx9 = 1;  // Manually cause the interrupt for the SWI
+    //    }
 
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
 
     SpibRegs.SPIFFRX.bit.RXFFIL = 8;
 
-    SpibRegs.SPITXBUF = (0x80 | 0x3A);
+    SpibRegs.SPITXBUF = 0xBA00;
     SpibRegs.SPITXBUF = 0x0000;
     SpibRegs.SPITXBUF = 0x0000;
     SpibRegs.SPITXBUF = 0x0000;
@@ -402,7 +366,7 @@ __interrupt void cpu_timer0_isr(void) {
     SpibRegs.SPITXBUF = 0x0000;
     SpibRegs.SPITXBUF = 0x0000;
 
-    if ((numTimer0calls) % 200) {
+    if ((numTimer0calls) % 100==0) {
         UARTPrint = 1;
     }
     
@@ -439,12 +403,12 @@ __interrupt void cpu_timer0_isr(void) {
         pwm_v-=10;
     }
     // Clear GPIO9 Low to select a chip. Right now, just to scope. Later to select DAN28027 chip
-    GpioDataRegs.GPACLEAR.bit.GPIO9 = 1; // st52_qiyuanx3: setGPIO9 to low
-    SpibRegs.SPIFFRX.bit.RXFFIL = 3;     // Setup SPI to issue its SPIB_RX_INT interrupt when 2 values are in
-    // the RX FIFO
-    SpibRegs.SPITXBUF = 0x00DA; //st52_qiyuanx3: first 16 bit value to communicate with DAN chip
-    SpibRegs.SPITXBUF = pwm_v; // 0x4A3B and 0xB517 have no special meaning. Wanted to send
-    SpibRegs.SPITXBUF = pwm_v; // something so you can see the ones and zeros on the Logic Analyser.
+    // GpioDataRegs.GPACLEAR.bit.GPIO9 = 1; // st52_qiyuanx3: setGPIO9 to low
+    // SpibRegs.SPIFFRX.bit.RXFFIL = 3;     // Setup SPI to issue its SPIB_RX_INT interrupt when 2 values are in
+    // // the RX FIFO
+    // SpibRegs.SPITXBUF = 0x00DA; //st52_qiyuanx3: first 16 bit value to communicate with DAN chip
+    // SpibRegs.SPITXBUF = pwm_v; // 0x4A3B and 0xB517 have no special meaning. Wanted to send
+    // SpibRegs.SPITXBUF = pwm_v; // something so you can see the ones and zeros on the Logic Analyser.
     if ((numTimer0calls % 50) == 0) {
         // Blink LaunchPad Red LED
         GpioDataRegs.GPBTOGGLE.bit.GPIO34 = 1;
@@ -464,25 +428,37 @@ __interrupt void cpu_timer2_isr(void) {
 
     numTimer2calls++;
 
-    if ((numTimer2calls % 10) == 0) {
-        UARTPrint = 1;
-    }
+    // if ((numTimer2calls % 10) == 0) {
+    //     UARTPrint = 1;
+    // }
 }
 
 
 __interrupt void SPIB_isr(void) {
 
-    GpioDataRegs.GPASET.bit.GPIO9 = 1; // Set GPIO9 high to end Slave Select. This will deselect the DAN8027
+    GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Set GPIO9 high to end Slave Select. This will deselect the DAN8027
+
+    temp = SpibRegs.SPIRXBUF;
 
     acc_x = SpibRegs.SPIRXBUF;
     acc_y = SpibRegs.SPIRXBUF;
     acc_z = SpibRegs.SPIRXBUF;
+
+    acc_x_reading = acc_x * 4.0 / 32767.0;
+    acc_y_reading = acc_y * 4.0 / 32767.0;
+    acc_z_reading = acc_z * 4.0 / 32767.0;
 
     temp = SpibRegs.SPIRXBUF;
 
     gyro_x = SpibRegs.SPIRXBUF;
     gyro_y = SpibRegs.SPIRXBUF;
     gyro_z = SpibRegs.SPIRXBUF;
+
+    gyro_x_reading = gyro_x * 250.0/32767.0;
+    gyro_y_reading = gyro_y * 250.0/32767.0;
+    gyro_z_reading = gyro_z * 250.0/32767.0;
+
+    // UARTPrint = 1;
 
     // spivalue1 = SpibRegs.SPIRXBUF;   // Read first 16-bit value off RX FIFO.
     // spivalue2 = SpibRegs.SPIRXBUF;
@@ -514,8 +490,7 @@ void setupSpib(void)
     SpibRegs.SPICTL.bit.CLK_PHASE = 1;    // This happens to be the mode for both the DAN28027 and
     SpibRegs.SPICCR.bit.CLKPOLARITY = 0;  // The MPU-9250, Mode 01.
     SpibRegs.SPICTL.bit.MASTER_SLAVE = 1; // Set to SPI Master
-    SpibRegs.SPICCR.bit.SPICHAR =
-        15; // st52_qiyuanx3: 16 bit -> Fh, Set to transmit and receive 16-bits each write to SPITXBUF
+    SpibRegs.SPICCR.bit.SPICHAR = 15; // st52_qiyuanx3: 16 bit -> Fh, Set to transmit and receive 16-bits each write to SPITXBUF
     SpibRegs.SPICTL.bit.TALK = 1;          // Enable transmission
     SpibRegs.SPIPRI.bit.FREE = 1;          // Free run, continue SPI operation
     SpibRegs.SPICTL.bit.SPIINTENA = 0;     // Disables the SPI interrupt
@@ -530,7 +505,7 @@ void setupSpib(void)
     SpibRegs.SPIFFRX.bit.RXFFOVFCLR = 1;  // Write 1 to clear SPIFFRX[RXFFOVF] just in case it is set
     SpibRegs.SPIFFRX.bit.RXFFINTCLR = 1;  // Write 1 to clear SPIFFRX[RXFFINT] flag just in case it is set
     SpibRegs.SPIFFRX.bit.RXFFIENA = 1;    // Enable the RX FIFO Interrupt. RXFFST >= RXFFIL
-    SpibRegs.SPIFFCT.bit.TXDLY = 0;      // Set delay between transmits to 16 spi clocks. Needed by DAN28027chip
+    SpibRegs.SPIFFCT.bit.TXDLY = 16;      // Set delay between transmits to 16 spi clocks. Needed by DAN28027chip
     SpibRegs.SPICCR.bit.SPISWRESET = 1;   // Pull the SPI out of reset
     SpibRegs.SPIFFTX.bit.TXFIFO = 1;      // Release transmit FIFO from reset.
     SpibRegs.SPIFFRX.bit.RXFIFORESET = 1; // Re-enable receive FIFO operation
@@ -569,29 +544,23 @@ void setupSpib(void)
     // To address 00x13 write 0x00
     SpibRegs.SPITXBUF = 0x1300;
     // To address 00x14 write 0x00
-    SpibRegs.SPITXBUF = 0x1400;
     // To address 00x15 write 0x00
-    SpibRegs.SPITXBUF = 0x1500;
+    SpibRegs.SPITXBUF = 0x0000;
     // To address 00x16 write 0x00
-    SpibRegs.SPITXBUF = 0x1600;
     // To address 00x17 write 0x00
-    SpibRegs.SPITXBUF = 0x1700;
+    SpibRegs.SPITXBUF = 0x0000;
     // To address 00x18 write 0x00
-    SpibRegs.SPITXBUF = 0x1800;
     // To address 00x19 write 0x13
-    SpibRegs.SPITXBUF = 0x1913;
+    SpibRegs.SPITXBUF = 0x0013;
     // To address 00x1A write 0x02
-    SpibRegs.SPITXBUF = 0x1A02;
     // To address 00x1B write 0x00
-    SpibRegs.SPITXBUF = 0x1B00;
+    SpibRegs.SPITXBUF = 0x0200;
     // To address 00x1C write 0x08
-    SpibRegs.SPITXBUF = 0x1C08;
     // To address 00x1D write 0x06
-    SpibRegs.SPITXBUF = 0x1D06;
+    SpibRegs.SPITXBUF = 0x0806;
     // To address 00x1E write 0x00
-    SpibRegs.SPITXBUF = 0x1E00;
     // To address 00x1F write 0x00
-    SpibRegs.SPITXBUF = 0x1F00;
+    SpibRegs.SPITXBUF = 0x0000;
     // wait for the correct number of 16-bit values to be received into the RX FIFO
     while(SpibRegs.SPIFFRX.bit.RXFFST != 7);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Slave Select High
@@ -612,19 +581,16 @@ void setupSpib(void)
 
     // Perform the number of needed writes to SPITXBUF to write to all 7 registers
     // To address 00x23 write 0x00
-    SpibRegs.SPITXBUF = (0x23 | 0x00);
+    SpibRegs.SPITXBUF = 0x2300;
     // To address 00x24 write 0x40
-    SpibRegs.SPITXBUF = (0x24 | 0x00);
     // To address 00x25 write 0x8C
-    SpibRegs.SPITXBUF = (0x25 | 0x8C);
+    SpibRegs.SPITXBUF = 0x408C;
     // To address 00x26 write 0x02
-    SpibRegs.SPITXBUF = (0x26 | 0x02);
     // To address 00x27 write 0x88
-    SpibRegs.SPITXBUF = (0x27 | 0x88);
+    SpibRegs.SPITXBUF = 0x0288;
     // To address 00x28 write 0x0C
-    SpibRegs.SPITXBUF = (0x28 | 0x0C);
     // To address 00x29 write 0x0A
-    SpibRegs.SPITXBUF = (0x29 | 0x0A);
+    SpibRegs.SPITXBUF = 0x0C0A;
     // wait for the correct number of 16-bit values to be received into the RX FIFO
     while(SpibRegs.SPIFFRX.bit.RXFFST !=4);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Slave Select High
@@ -638,7 +604,7 @@ void setupSpib(void)
     // perform a single 16-bit transfer to initialize MPU-9250 register 0x2A
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
     // Write to address 0x2A the value 0x81
-    SpibRegs.SPITXBUF = (0x2A | 0x81);
+    SpibRegs.SPITXBUF = (0x2A00 | 0x0081);
     // wait for one byte to be received
     while(SpibRegs.SPIFFRX.bit.RXFFST !=1);
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
