@@ -33,8 +33,11 @@ __interrupt void cpu_timer2_isr(void);
 __interrupt void SWI_isr(void);
 // st52_qiyuanx3: SPIB interrupt function definition
 __interrupt void SPIB_isr(void);
+
 // qiyuanx3: setupSPIB declaration
 void setupSpib(void);
+
+
 // Count variables
 uint32_t numTimer0calls = 0;
 uint32_t numTimer1calls = 0;
@@ -47,7 +50,7 @@ uint8_t updown = 0;
 
 uint16_t pwm_v = 0;
 
-//spivalues
+//qiyuanx3:spivalues
 int16_t spivalue1 = 0;
 int16_t spivalue2 = 0;
 int16_t spivalue3 = 0;
@@ -59,7 +62,8 @@ int16_t spivalue8 = 0;
 int16_t spivalue9 = 0;
 int16_t spivalue10 = 0;
 int16_t spivalue11 = 0;
-// acc and gyro readings
+
+//qiyuanx3: acc and gyro readings
 float acc_x = 0.0;
 float acc_y = 0.0;
 float acc_z = 0.0;
@@ -68,11 +72,12 @@ float gyro_x = 0.0;
 float gyro_y = 0.0;
 float gyro_z = 0.0;
 
-//offset
+//qiyuanx3:offset
 int16_t off_x = 0;
 int16_t off_y = 0;
 int16_t off_z = 0;
 
+//qiyuanx3:ADC values
 float ADC_1;
 float ADC_2;
 
@@ -367,8 +372,8 @@ void main(void) {
     while (1) {
         if (UARTPrint == 1) {
             // serial_printf(&SerialA, "ADC1 Value:%f ADC2 Value: %f\r\n", ADC_1, ADC_2);
-            //serial_printf(&SerialA, "Acc_x:%f Acc_y:%f Acc_z:%f gyro_x%f gyro_y%f gyro_z%f\r\n", acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z);
-            serial_printf(&SerialA, "off_x:%d off_y:%d off_z%d\r\n", off_x, off_y, off_z);
+            serial_printf(&SerialA, "Acc_x:%f Acc_y:%f Acc_z:%f gyro_x%f gyro_y%f gyro_z%f\r\n", acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z);
+            //serial_printf(&SerialA, "off_x:%d off_y:%d off_z%d\r\n", off_x, off_y, off_z);
             UARTPrint = 0;
         }
     }
@@ -406,7 +411,7 @@ __interrupt void cpu_timer0_isr(void) {
             LEDdisplaynum = 0;
         }
     }
-
+    //qiyuanx3: gradual changing PWM value up and dowm
     if (pwm_v == 3000) {
         updown = 1;
     } else if (pwm_v == 0) {
@@ -417,7 +422,9 @@ __interrupt void cpu_timer0_isr(void) {
     } else if (updown == 1) {
         pwm_v -= 10;
     }
-    //DAN chip transmit
+
+
+    //qiyuanx3:DAN chip transmit
     // Clear GPIO9 Low to select a chip. Right now, just to scope. Later to select DAN28027 chip
     // GpioDataRegs.GPACLEAR.bit.GPIO9 = 1; // st52_qiyuanx3: setGPIO9 to low
     // SpibRegs.SPIFFRX.bit.RXFFIL = 3;     // Setup SPI to issue its SPIB_RX_INT interrupt when 2 values are in
@@ -427,32 +434,32 @@ __interrupt void cpu_timer0_isr(void) {
     // SpibRegs.SPITXBUF = pwm_v;  // something so you can see the ones and zeros on the Logic Analyser.
 
 
-    //MPU transmit
+    //qiyuanx3: MPU transmit
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPIFFRX.bit.RXFFIL = 11; 
-    // SpibRegs.SPITXBUF = (0xBA00 | 0x0000);
-    // //acc_x
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //acc_y
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //acc_z
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //tmp
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //gyro_x
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //gyro_y
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    // //gyro_z
-    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    SpibRegs.SPIFFRX.bit.RXFFIL = 8; 
+    SpibRegs.SPITXBUF = (0xBA00 | 0x0000);
+    //acc_x
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //acc_y
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //acc_z
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //tmp
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //gyro_x
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //gyro_y
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    //gyro_z
+    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
 
-    SpibRegs.SPITXBUF = (0xF500 | 0x0000);
-    //off_x
-    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    //off_y
-    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
-    //off_z
-    SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    // SpibRegs.SPITXBUF = (0xF500 | 0x0000);
+    // //off_x
+    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    // //off_y
+    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
+    // //off_z
+    // SpibRegs.SPITXBUF = (0x0000 | 0x0000);
 
 
 
@@ -477,38 +484,38 @@ __interrupt void cpu_timer2_isr(void) {
 }
 
 __interrupt void SPIB_isr(void) {
+    // qiyuanx3: read spi values from FIFO
     spivalue1 = SpibRegs.SPIRXBUF; // Read first 16-bit value off RX FIFO.
     spivalue2 = SpibRegs.SPIRXBUF;
     spivalue3 = SpibRegs.SPIRXBUF;
     spivalue4 = SpibRegs.SPIRXBUF;
-    // spivalue5 = SpibRegs.SPIRXBUF;
-    // spivalue6 = SpibRegs.SPIRXBUF;
-    // spivalue7 = SpibRegs.SPIRXBUF;
-    // spivalue8 = SpibRegs.SPIRXBUF;
-    // spivalue9 = SpibRegs.SPIRXBUF;
-    // spivalue10 = SpibRegs.SPIRXBUF;
-    // spivalue11= SpibRegs.SPIRXBUF;
+    spivalue5 = SpibRegs.SPIRXBUF;
+    spivalue6 = SpibRegs.SPIRXBUF;
+    spivalue7 = SpibRegs.SPIRXBUF;
+    spivalue8 = SpibRegs.SPIRXBUF;
+
+    //qiyuanx3: acceleration values mapped from -4g to 4g
+    acc_x = spivalue2 * 4.0/32767.0;
+    acc_y = spivalue3 * 4.0/32767.0;
+    acc_z = spivalue4 * 4.0/32767.0;
+
+    //qiyuanx3: gyro values mapped from -250 to 250 degrees
+    gyro_x = spivalue6 * 250.0/32767.0;
+    gyro_y = spivalue7 * 250.0/32767.0;
+    gyro_z = spivalue8 * 250.0/32767.0;
+
+    // off_x = spivalue2;
+    // off_y = spivalue3;
+    // off_z = spivalue4;
+
     
-    // acc_x = spivalue2 * 4.0/32767.0;
-    // acc_y = spivalue3 * 4.0/32767.0;
-    // acc_z = spivalue4 * 4.0/32767.0;
-
-    // gyro_x = spivalue6 * 250.0/32767.0;
-    // gyro_y = spivalue7 * 250.0/32767.0;
-    // gyro_z = spivalue8 * 250.0/32767.0;
-
-    off_x = spivalue2;
-    off_y = spivalue3;
-    off_z = spivalue3;
-
-    // Read second 16-bit value off RX FIFO.
-    GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Set GPIO9 high to end Slave Select. This will deselect the DAN8027
+    GpioDataRegs.GPCSET.bit.GPIO66 = 1; // qiyuanx3:Set GPIO66 high to end Slave Select. This will deselect the MPU
                                        // chip in Ex. 2
     // Add Code Here (Later in Ex 2) when actually communicating with the DAN28027 to do something withthe data.Now do
     // nothing.
 
-    ADC_1 = 3.3 * spivalue2 / 4095.0;
-    ADC_2 = 3.3 * spivalue3 / 4095.0;
+    // ADC_1 = 3.3 * spivalue2 / 4095.0;
+    // ADC_2 = 3.3 * spivalue3 / 4095.0;
 
     UARTPrint = 1;
 
@@ -603,6 +610,7 @@ void setupSpib(void) {
         ;
 
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Slave Select High
+    //qiyuanx3: read the temp values
     temp = SpibRegs.SPIRXBUF;
     temp = SpibRegs.SPIRXBUF;
     temp = SpibRegs.SPIRXBUF;
@@ -703,42 +711,42 @@ void setupSpib(void) {
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7700 | 0x00EB); // 0x7700
+    SpibRegs.SPITXBUF = (0x7700 | 0x0016); // 0x7700
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7800 | 0x0012); // 0x7800
+    SpibRegs.SPITXBUF = (0x7800 | 0x00C4); // 0x7800
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7A00 | 0x0010); // 0x7A00
+    SpibRegs.SPITXBUF = (0x7A00 | 0x00E8); // 0x7A00
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7B00 | 0x00FA); // 0x7B00
+    SpibRegs.SPITXBUF = (0x7B00 | 0x00F0); // 0x7B00
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7D00 | 0x0021); // 0x7D00
+    SpibRegs.SPITXBUF = (0x7D00 | 0x001C); // 0x7D00
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
     temp = SpibRegs.SPIRXBUF;
     DELAY_US(10);
     GpioDataRegs.GPCCLEAR.bit.GPIO66 = 1;
-    SpibRegs.SPITXBUF = (0x7E00 | 0x0050); // 0x7E00
+    SpibRegs.SPITXBUF = (0x7E00 | 0x0062); // 0x7E00
     while (SpibRegs.SPIFFRX.bit.RXFFST != 1)
         ;
     GpioDataRegs.GPCSET.bit.GPIO66 = 1;
