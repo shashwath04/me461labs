@@ -51,6 +51,8 @@ int16_t spivalue1 = 0;
 int16_t spivalue2 = 0;
 int16_t spivalue3 = 0;
 
+// st52: Global variables for readings
+
 float ADC_1;
 float ADC_2;
 
@@ -124,7 +126,7 @@ void main(void) {
     GpioDataRegs.GPECLEAR.bit.GPIO130 = 1;
 
     // LED7
-    GPIO_SetupPinMux(131, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinMux(131, GPIO_MUX_CPU1, 0);   
     GPIO_SetupPinOptions(131, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPECLEAR.bit.GPIO131 = 1;
 
@@ -270,6 +272,8 @@ void main(void) {
     PieVectTable.SCIC_TX_INT = &TXCINT_data_sent;
     PieVectTable.SCID_TX_INT = &TXDINT_data_sent;
 
+    // st52: software interrupt and spib interrupt are added to PieVectTables.
+
     PieVectTable.EMIF_ERROR_INT = &SWI_isr;
     PieVectTable.SPIB_RX_INT = &SPIB_isr;
     EDIS; // This is needed to disable write to EALLOW protected registers
@@ -392,6 +396,7 @@ __interrupt void cpu_timer0_isr(void) {
         }
     }
 
+    // st52: updown for incrementing and decreasing pwm signal (oscillation)
     if (pwm_v == 3000) {
         updown = 1;
     } else if (pwm_v == 0) {
@@ -433,12 +438,17 @@ __interrupt void cpu_timer2_isr(void) {
     // }
 }
 
+// st52: Interrupt for SPIB
 
 __interrupt void SPIB_isr(void) {
 
     GpioDataRegs.GPCSET.bit.GPIO66 = 1; // Set GPIO9 high to end Slave Select. This will deselect the DAN8027
 
+    // st52: This is the temprorary bits being discarded
+
     temp = SpibRegs.SPIRXBUF;
+
+    // st52: These bits are for acceleration reading from the IMU and translating them to understandable values
 
     acc_x = SpibRegs.SPIRXBUF;
     acc_y = SpibRegs.SPIRXBUF;
@@ -448,7 +458,11 @@ __interrupt void SPIB_isr(void) {
     acc_y_reading = acc_y * 4.0 / 32767.0;
     acc_z_reading = acc_z * 4.0 / 32767.0;
 
+    // st52: This is temrorary bits being discarded
+
     temp = SpibRegs.SPIRXBUF;
+
+    // st52: These are the bits for the rotational readings from the IMU and translating them to understandable values
 
     gyro_x = SpibRegs.SPIRXBUF;
     gyro_y = SpibRegs.SPIRXBUF;
@@ -478,6 +492,10 @@ __interrupt void SPIB_isr(void) {
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6; // Acknowledge INT6 PIE interrupt
     
 }
+
+
+// st52: This is the setup for SPIB. Each address corresponds to a certain "setting" in the IMU so I am writing the bits to the register. Some "setting" are more than 8-bit so are
+//       spread out over multiple different registers. Depending on the registed the value can be either signed or unsigend. Some registers require bit shifting due reserced bit [0]
 
 void setupSpib(void)
 {
