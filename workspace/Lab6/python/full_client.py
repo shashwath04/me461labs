@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 
-HOST = '192.168.1.59'
+HOST = '192.168.1.52'
 PORT = 10001
 
 class FloatClientApp:

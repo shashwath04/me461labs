@@ -36,18 +36,16 @@ __interrupt void SWI_isr(void);
 __interrupt void SPIB_isr(void);
 __interrupt void ADCA_ISR(void);
 
-
 void setupSpib(void);
 void init_eQEPs(void);
 
-//Encoder reading definitions
+// Encoder reading definitions
 float readEncLeft(void);
 float readEncRight(void);
 
-//Motor function definitions
+// Motor function definitions
 void setEPWM2A(float);
 void setEPWM2B(float);
-
 
 extern uint32_t dis_1;
 extern uint32_t dis_3;
@@ -88,14 +86,14 @@ float adcina3_scaled;
 
 float controleffort = 0.0;
 
-//left and right wheel encoder values
+// left and right wheel encoder values
 float rightwheel = 0.0;
 float leftwheel = 0.0;
 
 float uLeft = 5.0;
 float uRight = 5.0;
 
-//position readings
+// position readings
 float posleft_k = 0.0;
 float posleft_k1 = 0.0;
 float posright_k = 0.0;
@@ -103,6 +101,84 @@ float posright_k1 = 0.0;
 
 float vLeftk = 0.0;
 float vRightk = 0.0;
+float Vref = 0.25;
+float erLeft = 0.0;
+float erRight = 0.0;
+
+float erk1Left = 0.0;
+float erk1Right = 0.0;
+
+float IkLeft = 0.0;
+float Ik1Left = 0.0;
+float IkRight = 0.0;
+float Ik1Right = 0.0;
+
+float ukRight = 0.0;
+float ukLeft = 0.0;
+
+float Kp = 3.0;
+float Ki = 25.0;
+
+float eturn = 0.0;
+float turn = 0.0;
+float Kp_turn = 3.0;
+
+float width = 0.173;
+float wheel = 0.0593;
+
+float theta_dot_right = 0.0;
+float theta_dot_left = 0.0;
+
+float theta_right_prev = 0.0;
+float theta_left_prev = 0.0;
+
+float theta_left = 0.0;
+float theta_right = 0.0;
+
+float x_dot = 0.0;
+float y_dot = 0.0;
+
+float x_dot_prev = 0.0;
+float y_dot_prev = 0.0;
+
+float theta_avg = 0.0;
+float theta_dot_avg = 0.0;
+
+float y_dot_right = 0.0;
+
+float printPY3 = 0;
+float printPY4 = 0;
+float printPY5 = 0;
+float printPY6 = 0;
+float printPY7 = 0;
+float printPY8 = 0;
+float x = 0;
+float y = 0;
+float bearing = 0;
+extern uint16_t NewPYData;
+extern float fromPYvalues[PYNUM_TOFROM_FLOATS];
+extern PYSendFloats_t DataToPython;
+extern char PYsenddata[PYNUM_TOFROM_FLOATS * 4 + 2];
+extern uint16_t newLinuxCommands;
+extern float LinuxCommands[CMDNUM_FROM_FLOATS];
+
+int rightwallfollow = 1; // st52_qiyuanx3: State 1 is that is follows the right wall and State 2 is that it looks ahead 
+
+float Kp_right = 0.000025;
+float Kp_front = 0.001;
+float ref_right = 200.0;
+float ref_front = 1400.0;
+float threshold1 = 300.0;
+float threshold2 = 700.0;
+
+float distright = 0.0;
+float distfront = 0.0;
+
+float vel_right = 0.25;
+float vel_front = 0.25;
+
+float turn_sat = 2.0;
+
 uint32_t fir_order = 22;
 float xk3_prev[21] = {0};
 float xk2_prev[21] = {0};
@@ -364,7 +440,7 @@ void main(void) {
     EDIS;
 
     EALLOW;
-    //qiyuanx3: EPWM2A and B settings
+    // qiyuanx3: EPWM2A and B settings
     EPwm2Regs.TBCTL.bit.CTRMODE = 0;
     EPwm2Regs.TBCTL.bit.CLKDIV = 0;
     EPwm2Regs.TBCTL.bit.FREE_SOFT = 2;
@@ -383,9 +459,9 @@ void main(void) {
     GPIO_SetupPinMux(2, GPIO_MUX_CPU1, 1);
     GPIO_SetupPinMux(3, GPIO_MUX_CPU1, 1);
 
-    EALLOW;                             // Below are protected registers
-    GpioCtrlRegs.GPAPUD.bit.GPIO2 = 1;  // For EPWM2A
-    GpioCtrlRegs.GPAPUD.bit.GPIO3 = 1;  // For EPWM2B
+    EALLOW;                            // Below are protected registers
+    GpioCtrlRegs.GPAPUD.bit.GPIO2 = 1; // For EPWM2A
+    GpioCtrlRegs.GPAPUD.bit.GPIO3 = 1; // For EPWM2B
     EDIS;
 
     EALLOW;
@@ -452,13 +528,14 @@ void main(void) {
 
     // IDLE loop. Just sit and loop forever (optional):
     while (1) {
-        
+
         if (UARTPrint == 1) {
             // serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",numTimer2calls,numRXA);
-            serial_printf(&SerialA, "a:%.3f,%.3f,%.3f  g:%.3f,%.3f,%.3f\r\n", accelx, accely, accelz, gyrox, gyroy,gyroz);
-            //serial_printf(&SerialA, "D1 %ld D2 %ld\r\n", dis_1, dis_3);
-            //serial_printf(&SerialA, " St1 %ld St2 %ld\n\r", measure_status_1, measure_status_3);
-            //serial_printf(&SerialA, "Joystick X %f Joystick Y %f\r\n", xk3, yk2);
+            serial_printf(&SerialA, "a:%.3f,%.3f,%.3f  g:%.3f,%.3f,%.3f\r\n", accelx, accely, accelz, gyrox, gyroy,
+                          gyroz);
+            // serial_printf(&SerialA, "D1 %ld D2 %ld\r\n", dis_1, dis_3);
+            // serial_printf(&SerialA, " St1 %ld St2 %ld\n\r", measure_status_1, measure_status_3);
+            // serial_printf(&SerialA, "Joystick X %f Joystick Y %f\r\n", xk3, yk2);
             serial_printf(&SerialA, "Rightwheel v %f Leftwheel v%f\r\n", vRightk, vLeftk);
 
             UARTPrint = 0;
@@ -476,6 +553,40 @@ __interrupt void SWI_isr(void) {
     EINT;              // Clear INTM to enable interrupts
 
     // Insert SWI ISR Code here.......
+
+    if (measure_status_1 == 0) {
+        distright = dis_1;
+    } else {
+        distright = 1400; // set to max reading if error
+    }
+    if (measure_status_3 == 0) {
+        distfront = dis_3;
+    } else {
+        distfront = 1400; // set to max reading if error
+    }
+
+    if (rightwallfollow) {
+        turn = Kp_right * (ref_right - distright);
+        Vref = vel_right;
+        if (distfront < threshold1) {
+            rightwallfollow = 0;
+        }
+    }
+    else {
+        turn = Kp_front * (ref_front - distfront);
+        Vref = vel_front;
+        if (distfront > threshold2) {
+            rightwallfollow = 1;
+        }
+    }
+
+    if (turn > turn_sat) {
+        turn = turn_sat;
+    }
+    if (turn < -turn_sat) {
+        turn = -turn_sat;
+    }
+
     leftwheel = -1 * readEncLeft();
     rightwheel = readEncRight();
 
@@ -484,15 +595,97 @@ __interrupt void SWI_isr(void) {
 
     posright_k = distanceRight;
     posleft_k = distanceLeft;
-    vLeftk = (posleft_k - posleft_k1)/0.004;
-    vRightk = (posright_k - posright_k1)/0.004;
+
+    // st52_qiyuanx3: velocity calculation
+    vLeftk = (posleft_k - posleft_k1) / 0.004;
+    vRightk = (posright_k - posright_k1) / 0.004;
     posleft_k1 = posleft_k;
     posright_k1 = posright_k;
 
-    setEPWM2A(uLeft);
-    setEPWM2B(uRight);
-    
-    
+
+    eturn = turn + (vLeftk - vRightk);
+
+    erLeft = Vref - vLeftk - Kp_turn * eturn;
+    erRight = Vref - vRightk + Kp_turn * eturn;
+
+    IkRight = Ik1Right + 0.004 * (erRight + erk1Right) / 2.0;
+    IkLeft = Ik1Left + 0.004 * (erLeft + erk1Left) / 2.0;
+
+    uRight = Kp * erRight + Ki * Ik1Right;
+    uLeft = Kp * erLeft + Ki * Ik1Left;
+
+    if (fabs(uRight) > 10.0) {
+        IkRight = 0.95 * Ik1Right;
+    }
+
+    if (fabs(uLeft) > 10.0) {
+        IkLeft = 0.95 * Ik1Left;
+    }
+
+    theta_left_prev = theta_left;
+    theta_right_prev = theta_right;
+
+    theta_left = leftwheel;
+    theta_right = rightwheel;
+
+    theta_dot_right = (theta_right - theta_right_prev) / 0.004;
+    theta_dot_left = (theta_left - theta_left_prev) / 0.004;
+
+    theta_dot_avg = 0.5 * (theta_dot_right + theta_dot_left);
+
+    bearing = (wheel / width) * (theta_right - theta_left);
+    theta_avg = 0.5 * (theta_left + theta_right);
+
+    x_dot_prev = x_dot;
+    y_dot_prev = y_dot;
+
+    x_dot = wheel * theta_dot_avg * cosf(bearing);
+    y_dot = wheel * theta_dot_avg * sinf(bearing);
+
+    x = x + (x_dot + x_dot_prev) / 2.0 * 0.004;
+    y = y + (y_dot + y_dot_prev) / 2.0 * 0.004;
+
+
+    setEPWM2A(uRight);
+    setEPWM2B(uLeft);
+
+    Ik1Right = IkRight;
+    Ik1Left = IkLeft;
+    erk1Right = erRight;
+    erk1Left = erLeft;
+
+
+    if (NewPYData == 1) {
+        NewPYData = 0;
+        Vref = fromPYvalues[0];
+        turn = fromPYvalues[1];
+        printPY3 = fromPYvalues[2];
+        printPY4 = fromPYvalues[3];
+        printPY5 = fromPYvalues[4];
+        printPY6 = fromPYvalues[5];
+        printPY7 = fromPYvalues[6];
+        printPY8 = fromPYvalues[7];
+    }
+    if ((numSWIcalls % 13) == 0) { // 4*13 = 52ms
+        DataToPython.floatData[0] = x;
+        DataToPython.floatData[1] = y;
+        DataToPython.floatData[2] = bearing;
+        DataToPython.floatData[3] = 2.0 * ((float)numTimer0calls) * .001; // Next 5 are up to you.
+        DataToPython.floatData[4] = 3.0 * ((float)numTimer0calls) * .001; // Here I am just sending
+        DataToPython.floatData[5] = (float)numTimer0calls;                // something to check
+        DataToPython.floatData[6] = (float)numTimer0calls * 4.0;
+        DataToPython.floatData[7] = (float)numTimer0calls * 5.0;
+        PYsenddata[0] = '*'; // header for PYdata
+        PYsenddata[1] = '$';
+        for (int i = 0; i < PYNUM_TOFROM_FLOATS * 4; i++) {
+            if (i % 2 == 0) {
+                PYsenddata[i + 2] = DataToPython.rawData[i / 2] & 0xFF;
+            } else {
+                PYsenddata[i + 2] = (DataToPython.rawData[i / 2] >> 8) & 0xFF;
+            }
+        }
+        serial_sendSCID(&SerialD, PYsenddata, 4 * PYNUM_TOFROM_FLOATS + 2);
+    }
     numSWIcalls++;
 
     DINT;
@@ -973,7 +1166,6 @@ void init_eQEPs(void) {
     EQep2Regs.QEPCTL.bit.QPEN = 1; // Enable EQep
 }
 
-
 float readEncLeft(void) {
     int32_t raw = 0;
     uint32_t QEP_maxvalue = 0xFFFFFFFFU; // 4294967295U
@@ -983,9 +1175,8 @@ float readEncLeft(void) {
     // 100 slits in the encoder disk so 100 square waves per one revolution of the
     // DC motor's back shaft. Then Quadrature Decoder mode multiplies this by 4 so 400 counts/one rev
     // of the DC motor's back shaft. Then the gear motor's gear ratio is 30:1.
-    return (raw*(2*PI/12000));
+    return (raw * (2 * PI / 12000));
 }
-
 
 float readEncRight(void) {
     int32_t raw = 0;
@@ -996,9 +1187,8 @@ float readEncRight(void) {
     // 100 slits in the encoder disk so 100 square waves per one revolution of the
     // DC motor's back shaft. Then Quadrature Decoder mode multiplies this by 4 so 400 counts/one rev
     // of the DC motor's back shaft. Then the gear motor's gear ratio is 30:1.
-    return (raw*(2*PI/12000));
+    return (raw * (2 * PI / 12000));
 }
-
 
 void setEPWM2A(float controleffort) {
     // -10 mean 0 and 10 mean 1250 and 0 means 1250
