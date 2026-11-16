@@ -47,6 +47,8 @@ float readEncRight(void);
 void setEPWM2A(float);
 void setEPWM2B(float);
 
+// st52_qiyuanx3: external varaibles for the status of the distance sensor and the distance it produces
+
 extern uint32_t dis_1;
 extern uint32_t dis_3;
 
@@ -85,6 +87,8 @@ float adcina2_scaled;
 float adcina3_scaled;
 
 float controleffort = 0.0;
+
+// st52_qiyuanx3: All the global variables are defined below here
 
 // left and right wheel encoder values
 float rightwheel = 0.0;
@@ -164,12 +168,12 @@ extern float LinuxCommands[CMDNUM_FROM_FLOATS];
 
 int rightwallfollow = 1; // st52_qiyuanx3: State 1 is that is follows the right wall and State 2 is that it looks ahead 
 
-float Kp_right = 0.000025;
-float Kp_front = 0.001;
+float Kp_right = 0.001;
+float Kp_front = 0.0002;
 float ref_right = 200.0;
 float ref_front = 1400.0;
-float threshold1 = 300.0;
-float threshold2 = 700.0;
+float threshold1 = 450.0;
+float threshold2 = 650.0;
 
 float distright = 0.0;
 float distfront = 0.0;
@@ -554,6 +558,8 @@ __interrupt void SWI_isr(void) {
 
     // Insert SWI ISR Code here.......
 
+    // st52_qiyuanx3: this code below checks for the validity of the distane sensor. It ensures that hte robot doesn't keep spinning in a circle due to bad data
+
     if (measure_status_1 == 0) {
         distright = dis_1;
     } else {
@@ -564,6 +570,8 @@ __interrupt void SWI_isr(void) {
     } else {
         distfront = 1400; // set to max reading if error
     }
+
+    // st52_qiyuanx3: Below is the wall-following algorithm which is a simple state machine that has 2 states to turn when the front distance it soo small and to follow the wall and not veer away from it.
 
     if (rightwallfollow) {
         turn = Kp_right * (ref_right - distright);
@@ -587,6 +595,8 @@ __interrupt void SWI_isr(void) {
         turn = -turn_sat;
     }
 
+    // st52_qiyuanx3: Here, we are calculating the dynamics of the wheel and the predicted motion of the robot 
+
     leftwheel = -1 * readEncLeft();
     rightwheel = readEncRight();
 
@@ -602,6 +612,7 @@ __interrupt void SWI_isr(void) {
     posleft_k1 = posleft_k;
     posright_k1 = posright_k;
 
+    // st52_qiyuanx3: We are propagating the wheel states with trapezoid rule integration and getting the control u with the PI controller.
 
     eturn = turn + (vLeftk - vRightk);
 
@@ -645,6 +656,8 @@ __interrupt void SWI_isr(void) {
     x = x + (x_dot + x_dot_prev) / 2.0 * 0.004;
     y = y + (y_dot + y_dot_prev) / 2.0 * 0.004;
 
+
+    // st52_qiyuanx3: Here, we set the PWM for each of the motors to control them and update the previous state variables for the next iteration using our current state variables.
 
     setEPWM2A(uRight);
     setEPWM2B(uLeft);
