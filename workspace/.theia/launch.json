@@ -81,6 +81,15 @@
                 "name": "Lab6",
                 "resourceId": "/Lab6"
             }
+        },
+        {
+            "name": "Lab7",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "Lab7",
+                "resourceId": "/Lab7"
+            }
         }
     ]
 }
