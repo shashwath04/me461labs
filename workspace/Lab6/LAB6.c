@@ -36,14 +36,16 @@ __interrupt void SWI_isr(void);
 __interrupt void SPIB_isr(void);
 __interrupt void ADCA_ISR(void);
 
+
 void setupSpib(void);
+// st52_qiyuanx3: encoder feedback function predefinition
 void init_eQEPs(void);
 
-// Encoder reading definitions
+// st52_qiyuanx3: encoder reading definitions
 float readEncLeft(void);
 float readEncRight(void);
 
-// Motor function definitions
+// st52_qiyuanx3: Motor function definitions
 void setEPWM2A(float);
 void setEPWM2B(float);
 
@@ -63,6 +65,8 @@ uint32_t numSWIcalls = 0;
 extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
 uint16_t LEDdisplaynum = 0;
+
+// st52_qiyuanx3: Raw IMU data
 int16_t accelx_raw = 0;
 int16_t accely_raw = 0;
 int16_t accelz_raw = 0;
@@ -70,19 +74,20 @@ int16_t gyrox_raw = 0;
 int16_t gyroy_raw = 0;
 int16_t gyroz_raw = 0;
 
+// st52_qiyuanx3: Scaled IMU data
 float accelx = 0;
 float accely = 0;
 float accelz = 0;
-
 float gyrox = 0;
 float gyroy = 0;
 float gyroz = 0;
 
+// st52_qiyuanx3: number of times spib called
 int32_t SpibNumCalls = 0;
 
+// st52_qiyuanx3: adc results for joystick
 uint16_t adca2result;
 uint16_t adca3result;
-
 float adcina2_scaled;
 float adcina3_scaled;
 
@@ -90,66 +95,99 @@ float controleffort = 0.0;
 
 // st52_qiyuanx3: All the global variables are defined below here
 
-// left and right wheel encoder values
+// st52_qiyuanx3:left and right wheel encoder values
 float rightwheel = 0.0;
 float leftwheel = 0.0;
 
+// st52_qiyuanx3: control effort for left and right wheel
 float uLeft = 5.0;
 float uRight = 5.0;
 
-// position readings
+// st52_qiyuanx3: position readings at current and previous timestep
 float posleft_k = 0.0;
 float posleft_k1 = 0.0;
 float posright_k = 0.0;
 float posright_k1 = 0.0;
 
+// st52_qiyuanx3: velocity of left and right wheels
 float vLeftk = 0.0;
 float vRightk = 0.0;
+
+// st52_qiyuanx3:reference velocity
 float Vref = 0.25;
+
+// st52_qiyuanx3: velocity error
 float erLeft = 0.0;
 float erRight = 0.0;
 
+// st52_qiyuanx3: velocity error in previous timestep
 float erk1Left = 0.0;
 float erk1Right = 0.0;
 
+// st52_qiyuanx3: integral at current and previous timestep
 float IkLeft = 0.0;
 float Ik1Left = 0.0;
 float IkRight = 0.0;
 float Ik1Right = 0.0;
 
-float ukRight = 0.0;
-float ukLeft = 0.0;
 
+// st52_qiyuanx3: P and I gains for velocity control
 float Kp = 3.0;
 float Ki = 25.0;
 
+// st52_qiyuanx3: turn and turn error, turn P gain
 float eturn = 0.0;
 float turn = 0.0;
 float Kp_turn = 3.0;
 
+// st52_qiyuanx3: width of robot and diameter of wheel
 float width = 0.173;
 float wheel = 0.0593;
 
+// st52_qiyuanx3: left and right wheel angle and angular velocity
+float theta_left = 0.0;
+float theta_right = 0.0;
 float theta_dot_right = 0.0;
 float theta_dot_left = 0.0;
 
+// st52_qiyuanx3: left and right angle on timestep back
 float theta_right_prev = 0.0;
 float theta_left_prev = 0.0;
 
-float theta_left = 0.0;
-float theta_right = 0.0;
-
+// st52_qiyuanx3: current and previous robot x,y velocity
 float x_dot = 0.0;
 float y_dot = 0.0;
-
 float x_dot_prev = 0.0;
 float y_dot_prev = 0.0;
 
+// st52_qiyuanx3: average angle and angular velocity
 float theta_avg = 0.0;
 float theta_dot_avg = 0.0;
 
-float y_dot_right = 0.0;
+// st52_qiyuanx3: right wall follow and front obstacle detected turn gain
+float Kp_right = 0.001;
+float Kp_front = 0.0002;
 
+// st52_qiyuanx3: right follow and front obstacle state distance reference
+float ref_right = 200.0;
+float ref_front = 1400.0;
+
+// st52_qiyuanx3: thresholds to switch states
+float threshold1 = 450.0;
+float threshold2 = 650.0;
+
+// st52_qiyuanx3: distance to right and front
+float distright = 0.0;
+float distfront = 0.0;
+
+// st52_qiyuanx3: reference velocity of right wall follow and front obstacle status
+float vel_right = 0.25;
+float vel_front = 0.25;
+
+// st52_qiyuanx3:turn saturation
+float turn_sat = 2.0;
+
+// st52_qiyuanx3: for python UI
 float printPY3 = 0;
 float printPY4 = 0;
 float printPY5 = 0;
@@ -159,6 +197,7 @@ float printPY8 = 0;
 float x = 0;
 float y = 0;
 float bearing = 0;
+
 extern uint16_t NewPYData;
 extern float fromPYvalues[PYNUM_TOFROM_FLOATS];
 extern PYSendFloats_t DataToPython;
@@ -168,20 +207,7 @@ extern float LinuxCommands[CMDNUM_FROM_FLOATS];
 
 int rightwallfollow = 1; // st52_qiyuanx3: State 1 is that is follows the right wall and State 2 is that it looks ahead 
 
-float Kp_right = 0.001;
-float Kp_front = 0.0002;
-float ref_right = 200.0;
-float ref_front = 1400.0;
-float threshold1 = 450.0;
-float threshold2 = 650.0;
 
-float distright = 0.0;
-float distfront = 0.0;
-
-float vel_right = 0.25;
-float vel_front = 0.25;
-
-float turn_sat = 2.0;
 
 uint32_t fir_order = 22;
 float xk3_prev[21] = {0};
@@ -574,20 +600,20 @@ __interrupt void SWI_isr(void) {
     // st52_qiyuanx3: Below is the wall-following algorithm which is a simple state machine that has 2 states to turn when the front distance it soo small and to follow the wall and not veer away from it.
 
     if (rightwallfollow) {
-        turn = Kp_right * (ref_right - distright);
-        Vref = vel_right;
-        if (distfront < threshold1) {
+        turn = Kp_right * (ref_right - distright); // st52_qiyuanx3: turn if needed to maintain distance to the right
+        Vref = vel_right; // st52_qiyuanx3: right follow velocity reference
+        if (distfront < threshold1) { // st52_qiyuanx3: stop wall follow when obstacle in front
             rightwallfollow = 0;
         }
     }
     else {
         turn = Kp_front * (ref_front - distfront);
         Vref = vel_front;
-        if (distfront > threshold2) {
+        if (distfront > threshold2) { // st52_qiyuanx3: switch back to right wall follow if no obstacle in front
             rightwallfollow = 1;
         }
     }
-
+    // st52_qiyuanx3: turn saturation
     if (turn > turn_sat) {
         turn = turn_sat;
     }
@@ -595,14 +621,14 @@ __interrupt void SWI_isr(void) {
         turn = -turn_sat;
     }
 
-    // st52_qiyuanx3: Here, we are calculating the dynamics of the wheel and the predicted motion of the robot 
-
+    
+    // st52_qiyuanx3: left and right wheel angle from encoder
     leftwheel = -1 * readEncLeft();
     rightwheel = readEncRight();
 
+    // st52_qiyuanx3: tranform from angle to distance
     distanceLeft = leftwheel / 16.34;
     distanceRight = rightwheel / 16.34;
-
     posright_k = distanceRight;
     posleft_k = distanceLeft;
 
@@ -613,18 +639,21 @@ __interrupt void SWI_isr(void) {
     posright_k1 = posright_k;
 
     // st52_qiyuanx3: We are propagating the wheel states with trapezoid rule integration and getting the control u with the PI controller.
-
+    // st52_qiyuanx3:turn error
     eturn = turn + (vLeftk - vRightk);
-
+    // st52_qiyuanx3: left and right wheel error
     erLeft = Vref - vLeftk - Kp_turn * eturn;
     erRight = Vref - vRightk + Kp_turn * eturn;
 
+    // st52_qiyuanx3: trapezoid rule integration
     IkRight = Ik1Right + 0.004 * (erRight + erk1Right) / 2.0;
     IkLeft = Ik1Left + 0.004 * (erLeft + erk1Left) / 2.0;
 
+    // st52_qiyuanx3: PI controller
     uRight = Kp * erRight + Ki * Ik1Right;
     uLeft = Kp * erLeft + Ki * Ik1Left;
 
+    // st52_qiyuanx3: prevent integral windup : if control effort > 10, integral gets multiplied by 0.95
     if (fabs(uRight) > 10.0) {
         IkRight = 0.95 * Ik1Right;
     }
@@ -633,41 +662,53 @@ __interrupt void SWI_isr(void) {
         IkLeft = 0.95 * Ik1Left;
     }
 
-    theta_left_prev = theta_left;
-    theta_right_prev = theta_right;
-
-    theta_left = leftwheel;
-    theta_right = rightwheel;
-
-    theta_dot_right = (theta_right - theta_right_prev) / 0.004;
-    theta_dot_left = (theta_left - theta_left_prev) / 0.004;
-
-    theta_dot_avg = 0.5 * (theta_dot_right + theta_dot_left);
-
-    bearing = (wheel / width) * (theta_right - theta_left);
-    theta_avg = 0.5 * (theta_left + theta_right);
-
-    x_dot_prev = x_dot;
-    y_dot_prev = y_dot;
-
-    x_dot = wheel * theta_dot_avg * cosf(bearing);
-    y_dot = wheel * theta_dot_avg * sinf(bearing);
-
-    x = x + (x_dot + x_dot_prev) / 2.0 * 0.004;
-    y = y + (y_dot + y_dot_prev) / 2.0 * 0.004;
-
-
-    // st52_qiyuanx3: Here, we set the PWM for each of the motors to control them and update the previous state variables for the next iteration using our current state variables.
-
-    setEPWM2A(uRight);
-    setEPWM2B(uLeft);
-
+    // st52_qiyuanx3: set up integral and error for 1 timestep back
     Ik1Right = IkRight;
     Ik1Left = IkLeft;
     erk1Right = erRight;
     erk1Left = erLeft;
 
 
+    // st52_qiyuanx3:Robot pose calculation
+
+    // st52_qiyuanx3: wheels angle 1 timestep back
+    theta_left_prev = theta_left;
+    theta_right_prev = theta_right;
+
+    // st52_qiyuanx3: wheel angles
+    theta_left = leftwheel;
+    theta_right = rightwheel;
+
+    // st52_qiyuanx3: wheel angular velocity
+    theta_dot_right = (theta_right - theta_right_prev) / 0.004;
+    theta_dot_left = (theta_left - theta_left_prev) / 0.004;
+
+    // st52_qiyuanx3: average angle and angular velocity
+    theta_dot_avg = 0.5 * (theta_dot_right + theta_dot_left);
+    theta_avg = 0.5 * (theta_left + theta_right);
+
+    // st52_qiyuanx3: robot pose angle
+    bearing = (wheel / width) * (theta_right - theta_left);
+    
+    // st52_qiyuanx3: previous x,y velocity
+    x_dot_prev = x_dot;
+    y_dot_prev = y_dot;
+
+    // st52_qiyuanx3: x,y velocity
+    x_dot = wheel * theta_dot_avg * cosf(bearing);
+    y_dot = wheel * theta_dot_avg * sinf(bearing);
+
+    // st52_qiyuanx3: x,y position
+    x = x + (x_dot + x_dot_prev) / 2.0 * 0.004;
+    y = y + (y_dot + y_dot_prev) / 2.0 * 0.004;
+
+
+   // st52_qiyuanx3: send control effort to motors
+    setEPWM2A(uRight);
+    setEPWM2B(uLeft);
+
+
+    // st52_qiyuanx3: communication with python
     if (NewPYData == 1) {
         NewPYData = 0;
         Vref = fromPYvalues[0];
